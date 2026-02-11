@@ -1,13 +1,17 @@
-from django.views import View
-from django.http import JsonResponse
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
 from blog.services import ReservaService
 
-class CrearReservaView(View):
+class CrearReservaView(APIView):
     def post(self, request):
         usuario = request.user
-        kit_id = request.POST.get("kit_id")
-        inicio = request.POST.get("inicio")
-        fin = request.POST.get("fin")
+        kit_id = request.data.get("kit_id")
+        inicio = request.data.get("inicio")
+        fin = request.data.get("fin")
         service = ReservaService()
-        reserva = service.crear_reserva(usuario, kit_id, inicio, fin)
-        return JsonResponse({"reserva_id": reserva.id})
+        try:
+            reserva = service.crear_reserva(usuario, kit_id, inicio, fin)
+            return Response({"reserva_id": reserva.id}, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
