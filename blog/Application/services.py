@@ -1,5 +1,5 @@
 from blog.Application.Factories import NotificadorFactory
-from blog.Domain.Builders import ReservaBuilder
+from blog.domain.builders import ReservaKitBuilder
 from blog.Infrastructure.repositories import KitRepository, ReservaRepository
 
 
@@ -23,7 +23,7 @@ class ReservaService:
             raise ValueError("El kit no está disponible en esas fechas")
 
         reserva = (
-            ReservaBuilder()
+            ReservaKitBuilder()
             .para_usuario(usuario)
             .con_kit(kit)
             .en_fechas(fecha_inicio, fecha_fin)

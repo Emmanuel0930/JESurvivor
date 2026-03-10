@@ -1,4 +1,4 @@
-from blog.Domain.models import KitEspecializado, ReservaKit
+from blog.domain.models import KitEspecializado, ReservaKit
 
 
 class KitRepository:
