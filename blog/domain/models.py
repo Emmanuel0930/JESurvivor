@@ -125,3 +125,52 @@ class ReservaKit(models.Model):
 
     def __str__(self):
         return f"{self.usuario.nombre} - {self.kit.nombre} ({self.fecha_inicio} a {self.fecha_fin})"
+
+
+class Curso(models.Model):
+    """Curso disponible para compra por los usuarios."""
+
+    class NivelRecomendado(models.TextChoices):
+        BASICO = "basico", "Básico"
+        INTERMEDIO = "intermedio", "Intermedio"
+        AVANZADO = "avanzado", "Avanzado"
+
+    nombre = models.CharField(max_length=200)
+    descripcion = models.TextField()
+    precio = models.DecimalField(max_digits=10, decimal_places=2)
+    nivel_recomendado = models.CharField(
+        max_length=20,
+        choices=NivelRecomendado.choices,
+        default=NivelRecomendado.BASICO,
+    )
+    duracion_horas = models.PositiveIntegerField(default=0)
+    activo = models.BooleanField(default=True)
+
+    def clean(self):
+        if self.precio is not None and self.precio < 0:
+            raise ValidationError({"precio": "El precio no puede ser negativo."})
+
+    def __str__(self):
+        return self.nombre
+
+
+class CompraCurso(models.Model):
+    """Registro de compra de un curso por un usuario."""
+
+    usuario = models.ForeignKey(
+        Usuario,
+        on_delete=models.CASCADE,
+        related_name="compras_curso",
+    )
+    curso = models.ForeignKey(
+        Curso,
+        on_delete=models.CASCADE,
+        related_name="compras",
+    )
+    fecha_compra = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [["usuario", "curso"]]
+
+    def __str__(self):
+        return f"{self.usuario.nombre} - {self.curso.nombre}"

@@ -1,4 +1,4 @@
-from blog.domain.models import KitEspecializado, ReservaKit
+from blog.domain.models import CompraCurso, Curso, KitEspecializado, ReservaKit
 
 
 class KitRepository:
@@ -17,3 +17,32 @@ class ReservaRepository:
     def guardar(self, reserva):
         reserva.save()
         return reserva
+
+    def obtener_por_id(self, reserva_id):
+        return ReservaKit.objects.get(id=reserva_id)
+
+    def listar_por_usuario(self, usuario):
+        return ReservaKit.objects.filter(usuario=usuario).order_by("fecha_inicio")
+
+
+class CursoRepository:
+    def obtener_por_id(self, curso_id):
+        return Curso.objects.get(id=curso_id)
+
+    def listar_cursos(self, solo_activos=True):
+        qs = Curso.objects.all().order_by("nombre")
+        if solo_activos:
+            qs = qs.filter(activo=True)
+        return qs
+
+
+class CompraCursoRepository:
+    def guardar(self, compra):
+        compra.save()
+        return compra
+
+    def existe_compra(self, usuario, curso):
+        return CompraCurso.objects.filter(usuario=usuario, curso=curso).exists()
+
+    def listar_por_usuario(self, usuario):
+        return CompraCurso.objects.filter(usuario=usuario).select_related("curso").order_by("-fecha_compra")

@@ -66,6 +66,10 @@ Una vez que el servidor esté corriendo, puedes acceder a la documentación inte
 - **Swagger UI:** [http://127.0.0.1:8000/api/docs/](http://127.0.0.1:8000/api/docs/)
 - **Redoc:** [http://127.0.0.1:8000/api/redoc/](http://127.0.0.1:8000/api/redoc/)
 
+## Documentación del proyecto
+
+- **Parte B (Service Layer + Factory):** [docs/service_layer.md](docs/service_layer.md) — Descripción de lo implementado (casos de uso de reservas y cursos, Factory, API) y lo que falta por hacer para el entregable de la Persona B.
+
 ## Notas Adicionales
 - El archivo `.gitignore` está configurado para no subir el entorno virtual (`venv/`), la base de datos local (`db.sqlite3`) ni archivos temporales.
 - Si agregas nuevas dependencias, recuerda actualizar el archivo de requerimientos con `pip freeze > requirements.txt`.
