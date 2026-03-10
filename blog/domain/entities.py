@@ -1,10 +1,11 @@
 from dataclasses import dataclass
+from datetime import date
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReservaData:
     usuario: object
     kit: object
-    fecha_inicio: object
-    fecha_fin: object
+    fecha_inicio: date
+    fecha_fin: date
     estado: str = "pendiente"
