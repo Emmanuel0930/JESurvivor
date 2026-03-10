@@ -1,29 +1,27 @@
-from blog.models import KitEspecializado, ReservaKit
-from blog.domain.builders import ReservaBuilder
-from blog.infra.factories import NotificadorFactory
+from blog.Application.Factories import NotificadorFactory
+from blog.Domain.Builders import ReservaBuilder
+from blog.Infrastructure.repositories import KitRepository, ReservaRepository
 
 
 class ReservaService:
 
     def __init__(self):
         self.notificador = NotificadorFactory.crear()
+        self.kit_repository = KitRepository()
+        self.reserva_repository = ReservaRepository()
 
     def crear_reserva(self, usuario, kit_id, fecha_inicio, fecha_fin):
+        kit = self.kit_repository.obtener_por_id(kit_id)
 
-        # 1️⃣ Obtener kit
-        kit = KitEspecializado.objects.get(id=kit_id)
-
-        # 2️⃣ Verificar disponibilidad
-        solapadas = ReservaKit.objects.filter(
+        solapadas = self.reserva_repository.existe_solapamiento(
             kit=kit,
-            fecha_inicio__lt=fecha_fin,
-            fecha_fin__gt=fecha_inicio
-        ).exists()
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin,
+        )
 
         if solapadas:
             raise ValueError("El kit no está disponible en esas fechas")
 
-        # 3️⃣ Builder construye la reserva
         reserva = (
             ReservaBuilder()
             .para_usuario(usuario)
@@ -32,10 +30,7 @@ class ReservaService:
             .build()
         )
 
-        # 4️⃣ Guardar
-        reserva.save()
-
-        # 5️⃣ Notificar
+        self.reserva_repository.guardar(reserva)
         self.notificador.enviar_confirmacion(reserva)
 
         return reserva

@@ -1,5 +1,6 @@
-from datetime import date
-from blog.models import ReservaKit
+from blog.Domain.entities import ReservaData
+from blog.Domain.models import ReservaKit
+from blog.Domain.validators import validar_campos_reserva, validar_fechas_reserva
 
 
 class ReservaBuilder:
@@ -19,27 +20,33 @@ class ReservaBuilder:
         return self
 
     def en_fechas(self, inicio, fin):
-        if inicio >= fin:
-            raise ValueError("La fecha de inicio debe ser menor que la fecha fin")
-
-        if inicio < date.today():
-            raise ValueError("No se puede reservar en fechas pasadas")
+        validar_fechas_reserva(inicio, fin)
 
         self._fecha_inicio = inicio
         self._fecha_fin = fin
         return self
 
     def build(self):
-
-        if not all([self._usuario, self._kit, self._fecha_inicio, self._fecha_fin]):
-            raise ValueError("Faltan datos para construir la reserva")
-
-        reserva = ReservaKit(
+        validar_campos_reserva(
             usuario=self._usuario,
             kit=self._kit,
             fecha_inicio=self._fecha_inicio,
             fecha_fin=self._fecha_fin,
-            estado="pendiente"
+        )
+
+        reserva_data = ReservaData(
+            usuario=self._usuario,
+            kit=self._kit,
+            fecha_inicio=self._fecha_inicio,
+            fecha_fin=self._fecha_fin,
+        )
+
+        reserva = ReservaKit(
+            usuario=reserva_data.usuario,
+            kit=reserva_data.kit,
+            fecha_inicio=reserva_data.fecha_inicio,
+            fecha_fin=reserva_data.fecha_fin,
+            estado=reserva_data.estado,
         )
 
         return reserva
