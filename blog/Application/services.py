@@ -1,5 +1,5 @@
 from blog.Application.Factories import NotificadorFactory
-from blog.Domain.Builders import ReservaBuilder
+from blog.Domain.builders import ReservaBuilder
 from blog.Infrastructure.repositories import KitRepository, ReservaRepository
 
 
