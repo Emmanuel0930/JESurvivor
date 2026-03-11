@@ -11,6 +11,26 @@
 
     <!-- Estilos principales -->
     <link rel="stylesheet" href="styles.css" />
+
+    <!--
+      FIX DEV:
+      Si sirves este Frontend con un servidor estático (ej. python http.server en 5173),
+      las llamadas a /api/* deben ir al backend (Django) en 8000.
+      Esto fuerza una base absoluta para evitar 404 tipo "File not found" en el servidor estático.
+    -->
+    <script>
+      (function () {
+        try {
+          var isLocal = location.hostname === "127.0.0.1" || location.hostname === "localhost";
+          var isStaticDev = isLocal && location.port && location.port !== "8000";
+          if (isStaticDev) {
+            window.__API_BASE__ = "http://127.0.0.1:8000/api";
+          }
+        } catch (e) {
+          // noop
+        }
+      })();
+    </script>
   </head>
 
   <body>
@@ -57,6 +77,6 @@
       con navegadores más antiguos y optimización de carga.
       ─────────────────────────────────────────────────────────
     -->
-    <script type="module" src="app.js"></script>
+    <script type="module" src="app.js?v=1"></script>
   </body>
 </html>
