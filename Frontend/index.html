@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="JESurvivor — Plataforma de supervivencia: foro, tienda de kits, cursos y suscripciones premium." />
+    <title>JESurvivor</title>
+
+    <!-- Favicon emoji -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☠</text></svg>" />
+
+    <!-- Estilos principales -->
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+
+  <body>
+    <!--
+      ┌────────────────────────────────────────────────────────┐
+      │  ESTRUCTURA PRINCIPAL DE JESurvivor                    │
+      │                                                        │
+      │  #navbar   → Renderizado por components/navbar.js      │
+      │  #app-root → Renderizado por pages/*.js vía render.js  │
+      └────────────────────────────────────────────────────────┘
+    -->
+
+    <!-- Navbar (inyectado por navbar.js) -->
+    <header id="navbar" role="banner" aria-label="Navegación principal">
+      <!-- navbar.js montará aquí el contenido -->
+    </header>
+
+    <!-- Contenedor principal de la app (SPA) -->
+    <!-- Cada página reemplaza el contenido de este div -->
+    <main id="app-root" role="main" aria-live="polite">
+      <!-- 
+        Las páginas se renderizan aquí dinámicamente:
+        - forumPage.js → foro de posts
+        - storePage.js → tienda de kits
+        - coursesPage.js → cursos disponibles
+        - subscriptionPage.js → planes premium
+      -->
+      <div class="loader-wrap">
+        <div class="loader-ring"></div>
+        <p class="loader-label">Iniciando JESurvivor...</p>
+      </div>
+    </main>
+
+    <!--
+      ─────────────────────────────────────────────────────────
+      PUNTO DE ENTRADA DE LA APLICACIÓN
+      app.js importa todos los módulos y arranca el enrutador.
+
+      type="module" habilita import/export ES6 nativo.
+      NO necesitas bundler (webpack/vite) para desarrollo local,
+      pero sí un servidor HTTP (Live Server, python http.server, etc.)
+
+      TODO: En producción, usar un bundler para compatibilidad
+      con navegadores más antiguos y optimización de carga.
+      ─────────────────────────────────────────────────────────
+    -->
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
