@@ -13,6 +13,8 @@ import { MOCK_POSTS, MOCK_SUBSCRIPTIONS } from "./mockData.js";
 // Por defecto usamos same-origin (/api) porque Django sirve la carpeta Frontend.
 // Si el frontend se ejecuta con un servidor estático aparte (ej. http.server en 5173),
 // apuntamos automáticamente al backend local para evitar 404 tipo "File not found".
+//
+// Nota: esto se resuelve EN CADA REQUEST para que no quede “pegado” por cache/orden de carga.
 function resolveApiBase() {
   // Permite override manual desde consola o index.html:
   // window.__API_BASE__ = "http://127.0.0.1:8000/api"
@@ -20,20 +22,24 @@ function resolveApiBase() {
     return window.__API_BASE__;
   }
 
-  if (typeof window !== "undefined") {
-    const { hostname, port } = window.location;
-    // Puertos típicos de front estático
-    if (hostname === "127.0.0.1" || hostname === "localhost") {
-      if (port && port !== "8000") {
-        return "http://127.0.0.1:8000/api";
-      }
+  if (typeof window !== "undefined" && window.location) {
+    const hostname = window.location.hostname;
+    const port = window.location.port;
+
+    const isLocal =
+      hostname === "127.0.0.1" ||
+      hostname === "localhost" ||
+      hostname === "::1";
+    const isBackendOrigin = port === "8000";
+    const isStaticDev = isLocal && !isBackendOrigin; // incluye caso de port vacío
+
+    if (isStaticDev) {
+      return "http://127.0.0.1:8000/api";
     }
   }
 
   return "/api";
 }
-
-const API_BASE = resolveApiBase();
 
 const COURSE_LEVEL_LABELS = {
   basico: "Principiante",
@@ -80,7 +86,8 @@ async function parseJsonSafely(res) {
 async function apiRequest(path, options = {}) {
   const { method = "GET", body, headers = {} } = options;
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const apiBase = resolveApiBase();
+  const res = await fetch(`${apiBase}${path}`, {
     method,
     headers: {
       ...(body ? { "Content-Type": "application/json" } : {}),

@@ -89,6 +89,30 @@ class Command(BaseCommand):
                     "lista_items": ["Piolet", "Crampones", "Saco -10°C"],
                 },
             )[0],
+            KitEspecializado.objects.get_or_create(
+                nombre="Kit Urbano Intermedio",
+                defaults={
+                    "descripcion": "Kit para emergencias urbanas (apagones, terremotos).",
+                    "precio": 79.99,
+                    "tipo": Producto.TipoProducto.KIT,
+                    "nivel_recomendado": Producto.NivelRecomendado.INTERMEDIO,
+                    "stock": 8,
+                    "entorno": KitEspecializado.Entorno.URBANO,
+                    "lista_items": ["Radio de emergencia", "Power bank", "Barras energéticas"],
+                },
+            )[0],
+            KitEspecializado.objects.get_or_create(
+                nombre="Kit Desierto Básico",
+                defaults={
+                    "descripcion": "Kit para ambientes secos: hidratación y sombra.",
+                    "precio": 69.99,
+                    "tipo": Producto.TipoProducto.KIT,
+                    "nivel_recomendado": Producto.NivelRecomendado.BASICO,
+                    "stock": 6,
+                    "entorno": KitEspecializado.Entorno.DESIERTO,
+                    "lista_items": ["Sombra portátil", "Sales de rehidratación", "Brújula"],
+                },
+            )[0],
         ]
 
         # Cursos
@@ -120,6 +144,26 @@ class Command(BaseCommand):
                     "precio": 49.99,
                     "nivel_recomendado": Curso.NivelRecomendado.AVANZADO,
                     "duracion_horas": 10,
+                    "activo": True,
+                },
+            )[0],
+            Curso.objects.get_or_create(
+                nombre="Refugio y fuego en montaña",
+                defaults={
+                    "descripcion": "Técnicas para refugio y encendido de fuego en clima frío.",
+                    "precio": 24.99,
+                    "nivel_recomendado": Curso.NivelRecomendado.INTERMEDIO,
+                    "duracion_horas": 7,
+                    "activo": True,
+                },
+            )[0],
+            Curso.objects.get_or_create(
+                nombre="Primeros auxilios de campo",
+                defaults={
+                    "descripcion": "Control de hemorragias, inmovilización y triage básico.",
+                    "precio": 34.99,
+                    "nivel_recomendado": Curso.NivelRecomendado.BASICO,
+                    "duracion_horas": 9,
                     "activo": True,
                 },
             )[0],

@@ -21,8 +21,11 @@
     <script>
       (function () {
         try {
-          var isLocal = location.hostname === "127.0.0.1" || location.hostname === "localhost";
-          var isStaticDev = isLocal && location.port && location.port !== "8000";
+          var isLocal =
+            location.hostname === "127.0.0.1" ||
+            location.hostname === "localhost" ||
+            location.hostname === "::1";
+          var isStaticDev = isLocal && location.port !== "8000";
           if (isStaticDev) {
             window.__API_BASE__ = "http://127.0.0.1:8000/api";
           }
