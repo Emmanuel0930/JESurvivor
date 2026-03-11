@@ -38,6 +38,25 @@ class ReservaSerializer(serializers.Serializer):
     estado = serializers.CharField()
 
 
+class KitSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    nombre = serializers.CharField()
+    descripcion = serializers.CharField()
+    precio = serializers.DecimalField(max_digits=10, decimal_places=2)
+    stock = serializers.IntegerField()
+    nivel_recomendado = serializers.CharField()
+    entorno = serializers.CharField()
+    lista_items = serializers.ListField(child=serializers.CharField(), allow_empty=True)
+
+
+class UsuarioActualSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    nombre = serializers.CharField()
+    email = serializers.EmailField()
+    nivel_experiencia = serializers.CharField()
+    ubicacion_climatica = serializers.CharField()
+
+
 # --- Cursos ---
 
 class CursoSerializer(serializers.Serializer):
@@ -55,6 +74,6 @@ class ComprarCursoRequestSerializer(serializers.Serializer):
 
 
 class ComprarCursoResponseSerializer(serializers.Serializer):
-    compra_id = serializers.IntegerField()
+    compra_id = serializers.IntegerField(source="id")
     curso_id = serializers.IntegerField(source="curso.id")
     fecha_compra = serializers.DateTimeField()

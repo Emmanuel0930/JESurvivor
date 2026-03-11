@@ -8,12 +8,31 @@
 // para que el resto del código no necesite cambios.
 // ============================================================
 
-import {
-  MOCK_POSTS,
-  MOCK_KITS,
-  MOCK_COURSES,
-  MOCK_SUBSCRIPTIONS,
-} from "./mockData.js";
+import { MOCK_POSTS, MOCK_SUBSCRIPTIONS } from "./mockData.js";
+
+const API_BASE = "/api";
+
+const COURSE_LEVEL_LABELS = {
+  basico: "Principiante",
+  intermedio: "Intermedio",
+  avanzado: "Avanzado",
+};
+
+const KIT_ICONS = {
+  montana: "🏔️",
+  selva: "🌿",
+  urbano: "🏙️",
+  desierto: "🏜️",
+  nieve: "❄️",
+};
+
+const USER_AVATARS = {
+  basico: "🧭",
+  intermedio: "🔥",
+  avanzado: "⚔️",
+};
+
+let currentUserCache = null;
 
 // Simula latencia de red para que el mock se comporte
 // como una API real (entre 300ms y 700ms)
@@ -23,6 +42,103 @@ const fakeDelay = (ms = 500) =>
 // Simula una respuesta de fetch exitosa envolviendo datos en
 // un objeto tipo { ok: true, data: [...] }
 const mockResponse = (data) => ({ ok: true, data });
+
+async function parseJsonSafely(res) {
+  const text = await res.text();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+async function apiRequest(path, options = {}) {
+  const { method = "GET", body, headers = {} } = options;
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    method,
+    headers: {
+      ...(body ? { "Content-Type": "application/json" } : {}),
+      ...headers,
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  const data = await parseJsonSafely(res);
+
+  if (!res.ok) {
+    throw new Error(data?.error || "No se pudo completar la solicitud.");
+  }
+
+  return data;
+}
+
+function mapCurrentUser(user) {
+  const level = user.nivel_experiencia || "basico";
+
+  return {
+    id: user.id,
+    backendId: user.id,
+    username: user.nombre,
+    avatar: USER_AVATARS[level] || "🧭",
+    subscription: "FREE",
+    badge: level === "avanzado" ? "OPERADOR AVANZADO" : "FREE",
+    isPremium: false,
+  };
+}
+
+function mapCourse(course) {
+  const level = COURSE_LEVEL_LABELS[course.nivel_recomendado] || "Principiante";
+
+  return {
+    id: course.id,
+    title: course.nombre,
+    instructor: "Equipo JESurvivor",
+    duration: `${course.duracion_horas} horas`,
+    level,
+    price: Number(course.precio),
+    image: level === "Avanzado" ? "⚔️" : level === "Intermedio" ? "🔥" : "🧭",
+    description: course.descripcion,
+    students: null,
+    rating: null,
+    isPremium: false,
+    active: course.activo,
+  };
+}
+
+function mapKit(kit) {
+  return {
+    id: kit.id,
+    name: kit.nombre,
+    price: Number(kit.precio),
+    image: KIT_ICONS[kit.entorno] || "🎒",
+    description: kit.descripcion,
+    items: Array.isArray(kit.lista_items) ? kit.lista_items : [],
+    stock: kit.stock,
+    badge: kit.stock <= 2 ? "LIMITADO" : null,
+    level: kit.nivel_recomendado,
+    environment: kit.entorno,
+  };
+}
+
+async function ensureCurrentUser() {
+  if (currentUserCache) {
+    return currentUserCache;
+  }
+
+  const user = await apiRequest("/usuario/actual/");
+  currentUserCache = mapCurrentUser(user);
+  return currentUserCache;
+}
+
+async function getUserHeaders() {
+  const user = await ensureCurrentUser();
+  return {
+    "X-User-Id": String(user.backendId),
+  };
+}
 
 // ─────────────────────────────────────────────
 // POSTS DEL FORO
@@ -60,13 +176,12 @@ export async function getPostById(id) {
 // Endpoint futuro: GET /api/store/kits
 // ─────────────────────────────────────────────
 export async function getKits() {
-  await fakeDelay(500);
-
-  // TODO: Reemplazar con:
-  // const res = await fetch("/api/store/kits");
-  // return res.json();
-
-  return mockResponse(MOCK_KITS);
+  try {
+    const kits = await apiRequest("/kit/");
+    return mockResponse(kits.map(mapKit));
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -74,13 +189,12 @@ export async function getKits() {
 // Endpoint futuro: GET /api/store/courses
 // ─────────────────────────────────────────────
 export async function getCourses() {
-  await fakeDelay(450);
-
-  // TODO: Reemplazar con:
-  // const res = await fetch("/api/store/courses");
-  // return res.json();
-
-  return mockResponse(MOCK_COURSES);
+  try {
+    const courses = await apiRequest("/curso/");
+    return mockResponse(courses.map(mapCourse));
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -102,19 +216,44 @@ export async function getSubscriptions() {
 // Endpoint futuro: GET /api/users/me
 // ─────────────────────────────────────────────
 export async function getCurrentUser() {
-  await fakeDelay(300);
+  try {
+    const user = await ensureCurrentUser();
+    return mockResponse(user);
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+}
 
-  // TODO: Reemplazar con:
-  // const res = await fetch("/api/users/me", { headers: { Authorization: `Bearer ${token}` } });
-  // return res.json();
+export async function buyCourse(courseId) {
+  try {
+    const headers = await getUserHeaders();
+    const data = await apiRequest("/curso/comprar/", {
+      method: "POST",
+      headers,
+      body: { curso_id: Number(courseId) },
+    });
 
-  // Usuario mock con suscripción activa para mostrar el badge
-  return mockResponse({
-    id: 1,
-    username: "SurvivorX",
-    avatar: "🔥",
-    subscription: "SURVIVOR PRO",
-    badge: "⚡ SURVIVOR",
-    isPremium: true,
-  });
+    return mockResponse(data);
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+}
+
+export async function reserveKit(kitId, inicio, fin) {
+  try {
+    const headers = await getUserHeaders();
+    const data = await apiRequest("/reserva/crear/", {
+      method: "POST",
+      headers,
+      body: {
+        kit_id: Number(kitId),
+        inicio,
+        fin,
+      },
+    });
+
+    return mockResponse(data);
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
 }

@@ -5,6 +5,12 @@ class KitRepository:
     def obtener_por_id(self, kit_id):
         return KitEspecializado.objects.get(id=kit_id)
 
+    def listar_kits(self, solo_con_stock=False):
+        qs = KitEspecializado.objects.all().order_by("nombre")
+        if solo_con_stock:
+            qs = qs.filter(stock__gt=0)
+        return qs
+
 
 class ReservaRepository:
     def existe_solapamiento(self, kit, fecha_inicio, fecha_fin):

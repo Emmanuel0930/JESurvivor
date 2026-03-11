@@ -3,12 +3,16 @@ from blog.Presentation.views import (
     CancelarReservaView,
     ComprarCursoView,
     CrearReservaView,
+    ListarKitsView,
     ListarCursosView,
     ListarReservasUsuarioView,
+    UsuarioActualView,
     VerificarDisponibilidadView,
 )
 
 urlpatterns = [
+    path("usuario/actual/", UsuarioActualView.as_view(), name="usuario-actual"),
+    path("kit/", ListarKitsView.as_view(), name="listar-kits"),
     path("reserva/crear/", CrearReservaView.as_view(), name="crear-reserva"),
     path(
         "reserva/disponibilidad/",

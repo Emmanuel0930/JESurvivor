@@ -2,51 +2,44 @@
 // pages/coursesPage.js — Página de Cursos
 //
 // Flujo:
-//   1. showLoader()
-//   2. getCourses()  ← mock → futuro: fetch("GET /api/store/courses")
+//   1. showSkeletonCourses()
+//   2. getCourses()  ← API real → GET /api/curso/
 //   3. renderCourses(courses)
 //   4. renderPage(html)
-//   5. Registrar evento "Ver curso"
+//   5. Registrar evento de compra
 // ============================================================
 
-import { getCourses } from "../api/api.js";
+import { buyCourse, getCourses } from "../api/api.js";
 import { renderCourses } from "../components/courses.js";
 import { renderPage, showError } from "../utils/render.js";
 import { showSkeletonCourses } from "../components/skeleton.js";
 
 /**
- * Carga y renderiza la página de cursos.
- * getCourses() pasará a hacer fetch a GET /api/store/courses
- * cuando el backend esté disponible.
+ * Carga y renderiza la página de cursos con compra real.
  */
 export async function coursesPage() {
-  // Muestra skeleton con la forma exacta de la página de cursos
-  // (cabecera + stats bar + 5 tarjetas de curso)
   showSkeletonCourses(5);
 
   try {
-    // ── Obtener cursos ─────────────────────────────────────
-    // TODO (backend): descomentar en api/api.js:
-    //   const res = await fetch("/api/store/courses");
     const res = await getCourses();
 
     if (!res.ok) {
-      showError("No se pudieron cargar los cursos.");
+      showError(res.error || "No se pudieron cargar los cursos.");
       return;
     }
 
-    const courses      = res.data;
-    const freeCourses  = courses.filter((c) => !c.isPremium && c.price === 0);
-    const paidCourses  = courses.filter((c) => !c.isPremium && c.price > 0);
-    const premiumCount = courses.filter((c) => c.isPremium).length;
-    const avgRating    = (
-      courses.reduce((acc, c) => acc + c.rating, 0) / courses.length
-    ).toFixed(1);
+    const courses = res.data;
+    const freeCourses = courses.filter((course) => !course.isPremium && course.price === 0);
+    const paidCourses = courses.filter((course) => !course.isPremium && course.price > 0);
+    const premiumCount = courses.filter((course) => course.isPremium).length;
+    const ratedCourses = courses.filter((course) => Number.isFinite(course.rating));
+    const avgRating = ratedCourses.length
+      ? (ratedCourses.reduce((acc, course) => acc + course.rating, 0) / ratedCourses.length).toFixed(1)
+      : "N/D";
 
     const html = `
       <section class="page-enter" aria-label="Cursos de supervivencia">
 
-        <!-- Cabecera -->
         <div class="page-header">
           <p class="page-eyebrow">Formación</p>
           <h1 class="page-title">Cursos de <em>Supervivencia</em></h1>
@@ -56,7 +49,6 @@ export async function coursesPage() {
           </p>
         </div>
 
-        <!-- Stats bar -->
         <div class="stats-bar">
           <div class="stat-item">
             <span class="stat-value">${freeCourses.length}</span>
@@ -71,40 +63,56 @@ export async function coursesPage() {
             <span class="stat-label">Exclusivos Premium</span>
           </div>
           <div class="stat-item">
-            <span class="stat-value">★ ${avgRating}</span>
+            <span class="stat-value">${avgRating === "N/D" ? avgRating : `★ ${avgRating}`}</span>
             <span class="stat-label">Rating promedio</span>
           </div>
         </div>
 
-        <!-- Lista de cursos (componente) -->
         ${renderCourses(courses)}
 
       </section>
     `;
 
     renderPage(html);
-
-    // ── Registrar evento "Ver curso" ────────────────────────
     setTimeout(() => registerCourseEvents(), 200);
-
   } catch (err) {
     console.error("[coursesPage]", err);
     showError("Error de conexión al cargar los cursos.");
   }
 }
 
-// ── Eventos de curso ─────────────────────────────────────────
 function registerCourseEvents() {
   document.querySelectorAll(".btn[data-course-id]").forEach((btn) => {
     if (btn.disabled) return;
 
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       const courseId = btn.dataset.courseId;
+      const card = btn.closest(".course-card");
+      const feedback = card?.querySelector("[data-course-feedback]");
+      const original = btn.innerHTML;
 
-      // TODO: Redirigir a la vista de curso:
-      // GET /api/store/courses/:id → renderizar contenido del curso
-      // Si requiere premium, verificar token antes de cargar
-      alert(`[Mock] Abriendo curso ${courseId}.\nConectar con GET /api/store/courses/${courseId}`);
+      btn.disabled = true;
+      btn.innerHTML = "Procesando...";
+      setFeedback(feedback, "Registrando compra...", "pending");
+
+      const res = await buyCourse(courseId);
+
+      if (!res.ok) {
+        btn.disabled = false;
+        btn.innerHTML = original;
+        setFeedback(feedback, res.error || "No se pudo completar la compra.", "error");
+        return;
+      }
+
+      btn.innerHTML = "Comprado";
+      setFeedback(feedback, `Compra registrada. ID ${res.data.compra_id}.`, "success");
     });
   });
+}
+
+function setFeedback(target, message, state) {
+  if (!target) return;
+
+  target.textContent = message;
+  target.dataset.state = state;
 }

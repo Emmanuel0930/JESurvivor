@@ -35,7 +35,7 @@ export function renderCourses(courses) {
 // ── Tarjeta individual de curso ─────────────────────────────
 function buildCourseCard(course) {
   const lvl        = LEVEL_MAP[course.level] || { cls: "level-beginner", label: course.level };
-  const stars      = buildStars(course.rating);
+  const stars      = course.rating ? buildStars(course.rating) : null;
   const isPremium  = course.isPremium;
 
   // Precio / etiqueta de acceso
@@ -51,13 +51,11 @@ function buildCourseCard(course) {
   // Botón CTA
   let ctaHTML;
   if (isPremium) {
-    // TODO: Al tener backend, verificar token y redirigir a /cursos/:id si es premium
     ctaHTML = `<button class="btn btn-locked" disabled aria-label="Requiere suscripción">🔒 Suscríbete</button>`;
   } else {
-    // TODO: Conectar con GET /api/store/courses/:id para cargar el curso
     ctaHTML = `
-      <button class="btn btn-primary" data-course-id="${course.id}" aria-label="Ver curso ${course.title}">
-        Ver curso →
+      <button class="btn btn-primary" data-course-id="${course.id}" aria-label="Comprar curso ${course.title}">
+        ${course.price === 0 ? "Inscribirse" : "Comprar curso"}
       </button>
     `;
   }
@@ -83,7 +81,7 @@ function buildCourseCard(course) {
 
         <!-- Título e instructor -->
         <h3 class="course-title">${course.title}</h3>
-        <p class="course-instructor">por <span>${course.instructor}</span></p>
+        <p class="course-instructor">por <span>${course.instructor || "Equipo JESurvivor"}</span></p>
 
         <!-- Descripción -->
         <p class="course-desc">${course.description}</p>
@@ -91,14 +89,19 @@ function buildCourseCard(course) {
         <!-- Footer: stats + precio + CTA -->
         <div class="course-bottom">
           <div class="course-stats">
-            <span class="course-rating" aria-label="Rating ${course.rating}">${stars} ${course.rating}</span>
-            <span class="course-students">👥 ${course.students.toLocaleString("es-ES")}</span>
+            ${course.rating
+              ? `<span class="course-rating" aria-label="Rating ${course.rating}">${stars} ${course.rating}</span>`
+              : `<span class="course-rating course-rating-muted">Acceso inmediato</span>`}
+            ${Number.isFinite(course.students)
+              ? `<span class="course-students">👥 ${course.students.toLocaleString("es-ES")}</span>`
+              : `<span class="course-students">Estado: disponible</span>`}
           </div>
           <div class="course-price-area">
             ${priceHTML}
             ${ctaHTML}
           </div>
         </div>
+        <p class="action-feedback" data-course-feedback></p>
 
       </div>
     </article>

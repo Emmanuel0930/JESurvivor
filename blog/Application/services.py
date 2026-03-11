@@ -1,6 +1,6 @@
 from blog.Application.Factories import NotificadorFactory
 from blog.domain.builders import ReservaKitBuilder
-from blog.domain.models import CompraCurso, Curso, ReservaKit
+from blog.domain.models import CompraCurso, Curso, KitEspecializado, ReservaKit
 from blog.Infrastructure.repositories import (
     CompraCursoRepository,
     CursoRepository,
@@ -19,6 +19,10 @@ class ReservaNoCancelable(Exception):
 
 class KitNoDisponible(Exception):
     """Se lanza cuando un kit no está disponible para las fechas solicitadas."""
+
+
+class KitNoEncontrado(Exception):
+    """Se lanza cuando un kit no existe."""
 
 
 class CursoNoEncontrado(Exception):
@@ -40,8 +44,14 @@ class ReservaService:
         self.kit_repository = KitRepository()
         self.reserva_repository = ReservaRepository()
 
+    def listar_kits(self, solo_con_stock=False):
+        return self.kit_repository.listar_kits(solo_con_stock=solo_con_stock)
+
     def crear_reserva(self, usuario, kit_id, fecha_inicio, fecha_fin):
-        kit = self.kit_repository.obtener_por_id(kit_id)
+        try:
+            kit = self.kit_repository.obtener_por_id(kit_id)
+        except KitEspecializado.DoesNotExist as exc:
+            raise KitNoEncontrado("El kit no existe.") from exc
 
         if self.reserva_repository.existe_solapamiento(
             kit=kit,
@@ -68,7 +78,10 @@ class ReservaService:
         Caso de uso: verificar si un kit está disponible en un rango de fechas.
         Levanta KitNoDisponible si hay conflicto, en caso contrario no levanta excepción.
         """
-        kit = self.kit_repository.obtener_por_id(kit_id)
+        try:
+            kit = self.kit_repository.obtener_por_id(kit_id)
+        except KitEspecializado.DoesNotExist as exc:
+            raise KitNoEncontrado("El kit no existe.") from exc
 
         if self.reserva_repository.existe_solapamiento(
             kit=kit,
@@ -83,7 +96,10 @@ class ReservaService:
         - Levanta ReservaNoEncontrada si la reserva no existe o no pertenece al usuario.
         - Levanta ReservaNoCancelable si la reserva no está en estado pendiente.
         """
-        reserva = self.reserva_repository.obtener_por_id(reserva_id)
+        try:
+            reserva = self.reserva_repository.obtener_por_id(reserva_id)
+        except ReservaKit.DoesNotExist as exc:
+            raise ReservaNoEncontrada("La reserva no existe.") from exc
 
         if reserva.usuario != usuario:
             raise ReservaNoEncontrada("La reserva no existe para este usuario.")

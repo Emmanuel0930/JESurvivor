@@ -712,6 +712,44 @@ a { color: var(--amber); text-decoration: none; }
 
 .kit-item::before { content: '›'; color: var(--amber); font-size: 14px; }
 
+.reservation-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.reservation-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reservation-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--txt-dim);
+}
+
+.reservation-input {
+  width: 100%;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--r);
+  color: var(--txt-bright);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 10px 12px;
+}
+
+.reservation-input:focus {
+  outline: none;
+  border-color: var(--amber);
+  box-shadow: 0 0 0 1px rgba(200, 134, 10, 0.18);
+}
+
 .kit-footer {
   margin-top: auto;
   padding-top: 14px;
@@ -829,12 +867,33 @@ a { color: var(--amber); text-decoration: none; }
 
 .course-stats { display: flex; align-items: center; gap: 14px; }
 .course-rating { font-family: var(--font-mono); font-size: 11px; color: var(--amber-bright); }
+.course-rating.course-rating-muted { color: var(--txt-mid); }
 .course-students { font-family: var(--font-mono); font-size: 11px; color: var(--txt-dim); }
 
 .course-price-area { display: flex; align-items: center; gap: 14px; }
 .course-price { font-family: var(--font-display); font-size: 20px; color: var(--amber-bright); }
 .course-price.free { font-family: var(--font-mono); font-size: 13px; color: var(--green-bright); background: rgba(45,122,79,0.15); border: 1px solid rgba(45,122,79,0.3); padding: 3px 10px; border-radius: 2px; }
 .course-price.premium-only { font-family: var(--font-mono); font-size: 11px; color: var(--amber); background: rgba(200,134,10,0.1); border: 1px solid rgba(200,134,10,0.2); padding: 3px 10px; border-radius: 2px; }
+
+.action-feedback {
+  min-height: 18px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  color: var(--txt-dim);
+}
+
+.action-feedback[data-state="pending"] {
+  color: var(--amber);
+}
+
+.action-feedback[data-state="success"] {
+  color: var(--green-bright);
+}
+
+.action-feedback[data-state="error"] {
+  color: var(--red-bright);
+}
 
 /* ============================================================
    SUSCRIPCIONES
@@ -1002,6 +1061,10 @@ a { color: var(--amber); text-decoration: none; }
   .kits-grid  { grid-template-columns: 1fr; }
   .course-bottom { flex-direction: column; align-items: flex-start; }
   .forum-toolbar { flex-direction: column; align-items: flex-start; }
+}
+
+@media (max-width: 640px) {
+  .reservation-panel { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 480px) {
