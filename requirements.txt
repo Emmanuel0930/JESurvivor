@@ -3,6 +3,7 @@ attrs==25.4.0
 Django==6.0.2
 djangorestframework==3.16.1
 drf-spectacular==0.29.0
+django-cors-headers
 inflection==0.5.1
 jsonschema==4.26.0
 jsonschema-specifications==2025.9.1

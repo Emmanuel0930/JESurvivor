@@ -10,7 +10,30 @@
 
 import { MOCK_POSTS, MOCK_SUBSCRIPTIONS } from "./mockData.js";
 
-const API_BASE = "/api";
+// Por defecto usamos same-origin (/api) porque Django sirve la carpeta Frontend.
+// Si el frontend se ejecuta con un servidor estático aparte (ej. http.server en 5173),
+// apuntamos automáticamente al backend local para evitar 404 tipo "File not found".
+function resolveApiBase() {
+  // Permite override manual desde consola o index.html:
+  // window.__API_BASE__ = "http://127.0.0.1:8000/api"
+  if (typeof window !== "undefined" && window.__API_BASE__) {
+    return window.__API_BASE__;
+  }
+
+  if (typeof window !== "undefined") {
+    const { hostname, port } = window.location;
+    // Puertos típicos de front estático
+    if (hostname === "127.0.0.1" || hostname === "localhost") {
+      if (port && port !== "8000") {
+        return "http://127.0.0.1:8000/api";
+      }
+    }
+  }
+
+  return "/api";
+}
+
+const API_BASE = resolveApiBase();
 
 const COURSE_LEVEL_LABELS = {
   basico: "Principiante",
