@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.exceptions import ValidationError
-from django.utils import timezone
+
+from blog.domain.validators import validar_rango_fechas_modelo_reserva
 
 
 class Usuario(models.Model):
@@ -111,17 +112,7 @@ class ReservaKit(models.Model):
     )
 
     def clean(self):
-        hoy = timezone.localdate()
-
-        if self.fecha_inicio >= self.fecha_fin:
-            raise ValidationError(
-                {"fecha_fin": "La fecha fin debe ser posterior a la fecha inicio."}
-            )
-
-        if self.fecha_inicio < hoy:
-            raise ValidationError(
-                {"fecha_inicio": "No se permiten reservas en fechas pasadas."}
-            )
+        validar_rango_fechas_modelo_reserva(self.fecha_inicio, self.fecha_fin)
 
     def __str__(self):
         return f"{self.usuario.nombre} - {self.kit.nombre} ({self.fecha_inicio} a {self.fecha_fin})"

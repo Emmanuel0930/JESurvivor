@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 from django.test import TestCase
+from django.test.utils import override_settings
 
 from blog.domain.models import Usuario, KitEspecializado, Producto, ReservaKit
 from blog.Application.services import (
@@ -68,6 +69,20 @@ class ReservaServiceTests(TestCase):
                 fecha_inicio=inicio,
                 fecha_fin=fin,
             )
+
+    @override_settings(RESERVA_KIT_STRANGLER_ENABLED=False)
+    def test_crear_reserva_con_fallback_legacy(self):
+        inicio, fin = self._rango_fechas()
+
+        reserva = self.service.crear_reserva(
+            usuario=self.usuario,
+            kit_id=self.kit.id,
+            fecha_inicio=inicio,
+            fecha_fin=fin,
+        )
+
+        self.assertIsInstance(reserva, ReservaKit)
+        self.assertEqual(reserva.estado, ReservaKit.EstadoReserva.PENDIENTE)
 
     def test_verificar_disponibilidad_conflicto(self):
         inicio, fin = self._rango_fechas()

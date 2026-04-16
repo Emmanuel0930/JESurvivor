@@ -49,14 +49,8 @@ urlpatterns = [
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]
 
-print("DEBUG MODE:", settings.DEBUG)
-
-print("Frontend path:", FRONTEND_DIR)
-
 if settings.DEBUG:
     urlpatterns += [
         path('', frontend_index, name='Frontend-index'),
         path('<path:requested_path>', frontend_asset_or_spa, name='Frontend-assets-or-spa'),
     ]
-
-print("URLPATTERNS:", urlpatterns)
