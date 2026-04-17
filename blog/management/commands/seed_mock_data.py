@@ -16,11 +16,28 @@ from blog.domain.models import (
 class Command(BaseCommand):
     help = "Crea datos mock (usuarios, kits, cursos) para probar endpoints."
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--usuarios",
+            type=int,
+            default=3,
+            help="Número de usuarios extra a crear (además de los fijos).",
+        )
+        parser.add_argument(
+            "--kits",
+            type=int,
+            default=5,
+            help="Número de kits extra a crear (además de los fijos).",
+        )
+
     @transaction.atomic
     def handle(self, *args, **options):
-        self.stdout.write(self.style.WARNING("Seeding mock data..."))
+        num_usuarios = options.get("usuarios", 3)
+        num_kits = options.get("kits", 5)
 
-        # Usuarios (modelo de dominio)
+        self.stdout.write(self.style.WARNING(f"Seeding mock data (extra: u={num_usuarios}, k={num_kits})..."))
+
+        # Usuarios fijos
         usuarios = [
             Usuario.objects.get_or_create(
                 email="basico@jesurvivor.local",
@@ -111,6 +128,30 @@ class Command(BaseCommand):
                     "stock": 6,
                     "entorno": KitEspecializado.Entorno.DESIERTO,
                     "lista_items": ["Sombra portátil", "Sales de rehidratación", "Brújula"],
+                },
+            )[0],
+            KitEspecializado.objects.get_or_create(
+                nombre="Kit Páramo Básico",
+                defaults={
+                    "descripcion": "Kit para bajas temperaturas y alta humedad.",
+                    "precio": 74.99,
+                    "tipo": Producto.TipoProducto.KIT,
+                    "nivel_recomendado": Producto.NivelRecomendado.BASICO,
+                    "stock": 4,
+                    "entorno": KitEspecializado.Entorno.MONTANA,
+                    "lista_items": ["Capa de lluvia pro", "Guantes térmicos", "Botas impermeables"],
+                },
+            )[0],
+            KitEspecializado.objects.get_or_create(
+                nombre="Kit Espeleología Intermedio",
+                defaults={
+                    "descripcion": "Kit para exploración de cuevas.",
+                    "precio": 99.99,
+                    "tipo": Producto.TipoProducto.KIT,
+                    "nivel_recomendado": Producto.NivelRecomendado.INTERMEDIO,
+                    "stock": 3,
+                    "entorno": KitEspecializado.Entorno.URBANO,
+                    "lista_items": ["Casco con linterna", "Rodilleras", "Cuerda estática"],
                 },
             )[0],
         ]
