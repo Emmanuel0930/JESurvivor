@@ -1,0 +1,84 @@
+version: "3.9"
+
+services:
+
+  # ─────────────────────────────────────
+  # Base de datos PostgreSQL (compartida)
+  # ─────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: jesurvivor_db
+    environment:
+      POSTGRES_DB: jesurvivor
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d jesurvivor"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ─────────────────────────────────────
+  # Monolito Django (API v1 / legacy)
+  # ─────────────────────────────────────
+  django:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jesurvivor_django
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: jesurvivor
+      DB_USER: postgres
+      DB_PASS: postgres
+      DJANGO_SECRET_KEY: "django-insecure-051rcf3g-**t#lc$(u726#2f3@v@8i!osf+mv3-#&pdt#3bv56"
+      DJANGO_DEBUG: "True"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,django,nginx"
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "8000"
+
+  # ─────────────────────────────────────
+  # Microservicio Flask (API v2 — Reservas)
+  # Módulo estrangulado del monolito
+  # ─────────────────────────────────────
+  flask_reservas:
+    build:
+      context: ./flask_reservas
+      dockerfile: Dockerfile
+    container_name: jesurvivor_flask_reservas
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: jesurvivor
+      DB_USER: postgres
+      DB_PASS: postgres
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "5000"
+
+  # ─────────────────────────────────────
+  # Nginx — Orquestador de tráfico
+  # /api/v2/reservas/ → Flask
+  # todo lo demás     → Django
+  # ─────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: jesurvivor_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - django
+      - flask_reservas
+
+volumes:
+  postgres_data:
