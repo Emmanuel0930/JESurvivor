@@ -3,7 +3,7 @@
 // FIX: waitFor() espera a que el DOM esté listo antes de pintar.
 // ============================================================
 
-import { getSistemaInfo, getClima, getAliado, dispararReporte, getFlaskHealth } from "../api/api.js";
+import { getSistemaInfo, getClima, getAliado, dispararReporte, getEstadoTarea, getFlaskHealth } from "../api/api.js";
 import { renderPage } from "../utils/render.js";
 
 const ENTORNOS = [
@@ -268,34 +268,78 @@ function registerReporteEvent() {
   const result = document.getElementById("celery-result");
   const badge  = document.getElementById("badge-celery");
   if (!btn || !result || !badge) return;
+
   btn.addEventListener("click", async () => {
     btn.disabled = true;
     btn.textContent = "Encolando tarea...";
     badge.className = "integ-badge integ-badge--loading";
     badge.innerHTML = `<span class="badge-dot"></span>PROCESANDO`;
     result.style.display = "none";
+
     const res = await dispararReporte();
     btn.disabled = false;
     btn.textContent = "⚡ Disparar Reporte";
-    if (res.ok) {
-      const d = res.data;
-      badge.className = "integ-badge integ-badge--ok";
-      badge.innerHTML = `<span class="badge-dot"></span>ENCOLADO`;
-      result.style.display = "block";
-      result.className = "celery-result celery-result--ok";
-      result.innerHTML = `
-        <div class="celery-row"><span class="celery-key">Estado</span><span class="celery-val c-amber">${d.estado||"encolado"}</span></div>
-        <div class="celery-row"><span class="celery-key">Task ID</span><span class="celery-val" style="font-family:var(--font-mono);font-size:11px">${d.task_id||"—"}</span></div>
-        <div class="celery-row"><span class="celery-key">Broker</span><span class="celery-val">${d.broker||"Redis + Celery"}</span></div>
-        <p class="celery-note">✅ Tarea ejecutándose en background. Verifica con: docker compose logs celery_worker</p>`;
-    } else {
+
+    if (!res.ok) {
       badge.className = "integ-badge integ-badge--error";
       badge.innerHTML = `<span class="badge-dot"></span>ERROR`;
       result.style.display = "block";
       result.className = "celery-result celery-result--error";
       result.innerHTML = `<p>⚠️ ${res.error}</p><p class="celery-note">Verifica con: docker compose ps</p>`;
+      return;
     }
+
+    const d = res.data;
+    const taskId = d.task_id;
+
+    // Mostrar estado inicial "encolado"
+    badge.className = "integ-badge integ-badge--ok";
+    badge.innerHTML = `<span class="badge-dot"></span>ENCOLADO`;
+    result.style.display = "block";
+    result.className = "celery-result celery-result--ok";
+    result.innerHTML = renderCeleryRow(d.estado || "encolado", taskId, d.broker || "Redis + Celery", null);
+
+    // Polling hasta obtener SUCCESS o FAILURE (máx ~10s)
+    let intentos = 0;
+    const maxIntentos = 10;
+    const intervalo = setInterval(async () => {
+      intentos++;
+      const estadoRes = await getEstadoTarea(taskId);
+      if (!estadoRes.ok || intentos >= maxIntentos) {
+        clearInterval(intervalo);
+        return;
+      }
+      const estado = estadoRes.data.estado; // pending, started, success, failure
+      if (estado === "success") {
+        clearInterval(intervalo);
+        badge.className = "integ-badge integ-badge--ok";
+        badge.innerHTML = `<span class="badge-dot"></span>COMPLETADO`;
+        result.innerHTML = renderCeleryRow("completado", taskId, d.broker || "Redis + Celery", estadoRes.data.resultado);
+      } else if (estado === "failure") {
+        clearInterval(intervalo);
+        badge.className = "integ-badge integ-badge--error";
+        badge.innerHTML = `<span class="badge-dot"></span>ERROR`;
+        result.className = "celery-result celery-result--error";
+        result.innerHTML = `<p>⚠️ La tarea falló: ${estadoRes.data.error || "error desconocido"}</p>`;
+      }
+      // Si sigue en pending/started, esperar siguiente tick
+    }, 1000);
   });
+}
+
+function renderCeleryRow(estado, taskId, broker, resultado) {
+  const resultadoHtml = resultado
+    ? `<div class="celery-row"><span class="celery-key">Reporte</span><span class="celery-val" style="font-size:11px;font-family:var(--font-mono)">${JSON.stringify(resultado)}</span></div>`
+    : "";
+  const nota = estado === "completado"
+    ? `<p class="celery-note">✅ Tarea ejecutada con éxito en el worker de Celery.</p>`
+    : `<p class="celery-note">⏳ Tarea ejecutándose en background. Verifica con: docker compose logs celery_worker</p>`;
+  return `
+    <div class="celery-row"><span class="celery-key">Estado</span><span class="celery-val c-amber">${estado}</span></div>
+    <div class="celery-row"><span class="celery-key">Task ID</span><span class="celery-val" style="font-family:var(--font-mono);font-size:11px">${taskId || "—"}</span></div>
+    <div class="celery-row"><span class="celery-key">Broker</span><span class="celery-val">${broker}</span></div>
+    ${resultadoHtml}
+    ${nota}`;
 }
 
 function buildPulse(n) { return Array.from({length:n},(_,i)=>`<div class="integ-pulse" style="width:${70-i*10}%;animation-delay:${i*0.12}s"></div>`).join(""); }

@@ -13,12 +13,25 @@ class KitRepository:
 
 
 class ReservaRepository:
+    # Estados que "consumen" stock — canceladas y finalizadas liberan el kit
+    ESTADOS_ACTIVOS = [
+        ReservaKit.EstadoReserva.PENDIENTE,
+        ReservaKit.EstadoReserva.CONFIRMADA,
+    ]
+
     def existe_solapamiento(self, kit, fecha_inicio, fecha_fin):
-        return ReservaKit.objects.filter(
+        """
+        Retorna True solo cuando las reservas activas (pendiente/confirmada)
+        con fechas solapadas alcanzan o superan el stock del kit.
+        Las reservas canceladas o finalizadas NO bloquean nuevas reservas.
+        """
+        reservas_activas = ReservaKit.objects.filter(
             kit=kit,
             fecha_inicio__lt=fecha_fin,
             fecha_fin__gt=fecha_inicio,
-        ).exists()
+            estado__in=self.ESTADOS_ACTIVOS,
+        ).count()
+        return reservas_activas >= kit.stock
 
     def guardar(self, reserva):
         reserva.save()

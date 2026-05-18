@@ -262,6 +262,19 @@ export async function dispararReporte() {
 }
 
 /**
+ * GET /api/tareas/estado/<task_id>/
+ * Consulta el estado y resultado de una tarea Celery.
+ */
+export async function getEstadoTarea(taskId) {
+  try {
+    const data = await apiRequest(`/tareas/estado/${taskId}/`);
+    return mockResponse(data);
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+}
+
+/**
  * GET /api/v2/reservas/health
  * Health check del microservicio Flask (Strangler Pattern).
  */

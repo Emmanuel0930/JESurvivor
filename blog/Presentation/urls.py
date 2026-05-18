@@ -14,6 +14,7 @@ from blog.Presentation.views import (
     ClimaSupervivenciaView,
     AliadoView,
     DisparadoReporteView,
+    EstadoTareaView,
 )
 
 urlpatterns = [
@@ -32,16 +33,13 @@ urlpatterns = [
     path("curso/comprar/", ComprarCursoView.as_view(), name="comprar-curso"),
 
     # ── Sistema (Entregable 2) ───────────────────────────
-    # Endpoint propio expuesto para el equipo aliado
     path("sistema/info/", SistemaInfoView.as_view(), name="sistema-info"),
 
-    # Tarea asíncrona Celery — disparo de reporte en background
+    # Tarea asíncrona Celery — disparo y consulta de estado
     path("tareas/reporte/", DisparadoReporteView.as_view(), name="disparar-reporte"),
+    path("tareas/estado/<str:task_id>/", EstadoTareaView.as_view(), name="estado-tarea"),
 
     # ── Integraciones externas (Entregable 2) ────────────
-    # Adapter Pattern → Open-Meteo (clima por entorno de supervivencia)
     path("clima/", ClimaSupervivenciaView.as_view(), name="clima-supervivencia"),
-
-    # Consumo del servicio del equipo aliado
     path("aliado/", AliadoView.as_view(), name="servicio-aliado"),
 ]

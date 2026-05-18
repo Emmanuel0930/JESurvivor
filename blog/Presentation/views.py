@@ -243,6 +243,36 @@ class DisparadoReporteView(APIView):
             )
 
 
+class EstadoTareaView(APIView):
+    @extend_schema(
+        tags=["sistema"],
+        description="Consulta el estado y resultado de una tarea Celery por su task_id.",
+        responses={200: dict},
+    )
+    def get(self, request, task_id):
+        try:
+            from celery.result import AsyncResult
+            result = AsyncResult(task_id)
+            estado = result.status  # PENDING, STARTED, SUCCESS, FAILURE, RETRY
+
+            payload = {
+                "task_id": task_id,
+                "estado": estado.lower(),
+            }
+
+            if estado == "SUCCESS":
+                payload["resultado"] = result.result
+            elif estado == "FAILURE":
+                payload["error"] = str(result.result)
+
+            return Response(payload, status=status.HTTP_200_OK)
+        except Exception as exc:
+            return Response(
+                {"error": "No se pudo consultar la tarea.", "detalle": str(exc)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+
 # ─── Vistas existentes (sin cambio de lógica) ───────────────
 
 class UsuarioActualView(APIView):
