@@ -1,27 +1,24 @@
 // ============================================================
-// api.js — Capa de API simulada (Mock API Layer)
-//
-// IMPORTANTE PARA EL FUTURO:
-// Cuando el backend esté listo, reemplaza cada función con
-// un fetch() real al endpoint correspondiente.
-// Las funciones mantienen la misma firma (Promise<data>)
-// para que el resto del código no necesite cambios.
+// api.js — Capa de API de JESurvivor
+// Entregable 2: Nuevas funciones para endpoints de integración.
 // ============================================================
 
 import { MOCK_POSTS, MOCK_SUBSCRIPTIONS } from "./mockData.js";
 
-// Por defecto usamos same-origin (/api) porque Django sirve la carpeta Frontend.
-// Si el frontend se ejecuta con un servidor estático aparte (ej. http.server en 5173),
-// apuntamos automáticamente al backend local para evitar 404 tipo "File not found".
-//
-// Nota: esto se resuelve EN CADA REQUEST para que no quede “pegado” por cache/orden de carga.
 function resolveApiBase() {
-  // Permite override manual desde consola
   if (typeof window !== "undefined" && window.__API_BASE__) {
     return window.__API_BASE__;
   }
-
-  // Siempre usar nginx como proxy
+  if (typeof window !== "undefined" && window.location) {
+    const hostname = window.location.hostname;
+    const port = window.location.port;
+    const isLocal =
+      hostname === "127.0.0.1" || hostname === "localhost" || hostname === "::1";
+    const DEV_STATIC_PORTS = ["5173", "5500", "5501", "3000", "4200", "8080"];
+    if (isLocal && DEV_STATIC_PORTS.indexOf(port) !== -1) {
+      return "http://127.0.0.1:8000/api";
+    }
+  }
   return "/api";
 }
 
@@ -47,19 +44,12 @@ const USER_AVATARS = {
 
 let currentUserCache = null;
 
-// Simula latencia de red para que el mock se comporte
-// como una API real (entre 300ms y 700ms)
-const fakeDelay = (ms = 500) =>
-  new Promise((resolve) => setTimeout(resolve, ms));
-
-// Simula una respuesta de fetch exitosa envolviendo datos en
-// un objeto tipo { ok: true, data: [...] }
+const fakeDelay = (ms = 500) => new Promise((resolve) => setTimeout(resolve, ms));
 const mockResponse = (data) => ({ ok: true, data });
 
 async function parseJsonSafely(res) {
   const text = await res.text();
   if (!text) return null;
-
   try {
     return JSON.parse(text);
   } catch {
@@ -69,7 +59,6 @@ async function parseJsonSafely(res) {
 
 async function apiRequest(path, options = {}) {
   const { method = "GET", body, headers = {} } = options;
-
   const apiBase = resolveApiBase();
   const res = await fetch(`${apiBase}${path}`, {
     method,
@@ -79,19 +68,15 @@ async function apiRequest(path, options = {}) {
     },
     body: body ? JSON.stringify(body) : undefined,
   });
-
   const data = await parseJsonSafely(res);
-
   if (!res.ok) {
     throw new Error(data?.error || "No se pudo completar la solicitud.");
   }
-
   return data;
 }
 
 function mapCurrentUser(user) {
   const level = user.nivel_experiencia || "basico";
-
   return {
     id: user.id,
     backendId: user.id,
@@ -105,7 +90,6 @@ function mapCurrentUser(user) {
 
 function mapCourse(course) {
   const level = COURSE_LEVEL_LABELS[course.nivel_recomendado] || "Principiante";
-
   return {
     id: course.id,
     title: course.nombre,
@@ -138,10 +122,7 @@ function mapKit(kit) {
 }
 
 async function ensureCurrentUser() {
-  if (currentUserCache) {
-    return currentUserCache;
-  }
-
+  if (currentUserCache) return currentUserCache;
   const user = await apiRequest("/usuario/actual/");
   currentUserCache = mapCurrentUser(user);
   return currentUserCache;
@@ -149,46 +130,23 @@ async function ensureCurrentUser() {
 
 async function getUserHeaders() {
   const user = await ensureCurrentUser();
-  return {
-    "X-User-Id": String(user.backendId),
-  };
+  return { "X-User-Id": String(user.backendId) };
 }
 
-// ─────────────────────────────────────────────
-// POSTS DEL FORO
-// Endpoint futuro: GET /api/posts
-// ─────────────────────────────────────────────
+// ─── Existentes ───────────────────────────────────────────────
+
 export async function getPosts() {
   await fakeDelay(400);
-
-  // TODO: Reemplazar con fetch real:
-  // const res = await fetch("/api/posts");
-  // if (!res.ok) throw new Error("Error al cargar posts");
-  // return res.json();
-
   return mockResponse(MOCK_POSTS);
 }
 
-// ─────────────────────────────────────────────
-// POST INDIVIDUAL
-// Endpoint futuro: GET /api/posts/:id
-// ─────────────────────────────────────────────
 export async function getPostById(id) {
   await fakeDelay(300);
-
-  // TODO: Reemplazar con:
-  // const res = await fetch(`/api/posts/${id}`);
-  // return res.json();
-
   const post = MOCK_POSTS.find((p) => p.id === id);
   if (!post) return { ok: false, error: "Post no encontrado" };
   return mockResponse(post);
 }
 
-// ─────────────────────────────────────────────
-// KITS DE LA TIENDA
-// Endpoint futuro: GET /api/store/kits
-// ─────────────────────────────────────────────
 export async function getKits() {
   try {
     const kits = await apiRequest("/kit/");
@@ -198,10 +156,6 @@ export async function getKits() {
   }
 }
 
-// ─────────────────────────────────────────────
-// CURSOS
-// Endpoint futuro: GET /api/store/courses
-// ─────────────────────────────────────────────
 export async function getCourses() {
   try {
     const courses = await apiRequest("/curso/");
@@ -211,24 +165,11 @@ export async function getCourses() {
   }
 }
 
-// ─────────────────────────────────────────────
-// SUSCRIPCIONES
-// Endpoint futuro: GET /api/store/subscriptions
-// ─────────────────────────────────────────────
 export async function getSubscriptions() {
   await fakeDelay(350);
-
-  // TODO: Reemplazar con:
-  // const res = await fetch("/api/store/subscriptions");
-  // return res.json();
-
   return mockResponse(MOCK_SUBSCRIPTIONS);
 }
 
-// ─────────────────────────────────────────────
-// USUARIO ACTUAL (simulado)
-// Endpoint futuro: GET /api/users/me
-// ─────────────────────────────────────────────
 export async function getCurrentUser() {
   try {
     const user = await ensureCurrentUser();
@@ -246,7 +187,6 @@ export async function buyCourse(courseId) {
       headers,
       body: { curso_id: Number(courseId) },
     });
-
     return mockResponse(data);
   } catch (error) {
     return { ok: false, error: error.message };
@@ -259,13 +199,78 @@ export async function reserveKit(kitId, inicio, fin) {
     const data = await apiRequest("/reserva/crear/", {
       method: "POST",
       headers,
-      body: {
-        kit_id: Number(kitId),
-        inicio,
-        fin,
-      },
+      body: { kit_id: Number(kitId), inicio, fin },
     });
+    return mockResponse(data);
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+}
 
+// ─── NUEVAS — Entregable 2 ────────────────────────────────────
+
+/**
+ * GET /api/sistema/info/
+ * Información del sistema expuesta para el equipo aliado.
+ */
+export async function getSistemaInfo() {
+  try {
+    const data = await apiRequest("/sistema/info/");
+    return mockResponse(data);
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+}
+
+/**
+ * GET /api/clima/?entorno=X
+ * Adapter Pattern sobre Open-Meteo. Entornos: montana, selva, urbano, desierto, nieve
+ */
+export async function getClima(entorno = "urbano") {
+  try {
+    const data = await apiRequest(`/clima/?entorno=${entorno}`);
+    return mockResponse(data);
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+}
+
+/**
+ * GET /api/aliado/
+ * Consumo del servicio del equipo aliado.
+ */
+export async function getAliado() {
+  try {
+    const data = await apiRequest("/aliado/");
+    return mockResponse(data);
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+}
+
+/**
+ * POST /api/tareas/reporte/
+ * Dispara una tarea asíncrona en Celery + Redis.
+ */
+export async function dispararReporte() {
+  try {
+    const data = await apiRequest("/tareas/reporte/", { method: "POST" });
+    return mockResponse(data);
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+}
+
+/**
+ * GET /api/v2/reservas/health
+ * Health check del microservicio Flask (Strangler Pattern).
+ */
+export async function getFlaskHealth() {
+  try {
+    const base = resolveApiBase().replace("/api", "");
+    const res = await fetch(`${base}/api/v2/reservas/health`);
+    const data = await parseJsonSafely(res);
+    if (!res.ok) throw new Error("Flask no disponible");
     return mockResponse(data);
   } catch (error) {
     return { ok: false, error: error.message };
