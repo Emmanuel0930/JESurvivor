@@ -1,15 +1,20 @@
-asgiref==3.11.1
-attrs==25.4.0
-Django==6.0.2
+# ─── Django core ───────────────────────────────────────────
+Django==5.0.6
 djangorestframework==3.16.1
 drf-spectacular==0.29.0
 django-cors-headers
-inflection==0.5.1
-jsonschema==4.26.0
-jsonschema-specifications==2025.9.1
-PyYAML==6.0.3
-referencing==0.37.0
-rpds-py==0.30.0
-sqlparse==0.5.5
-uritemplate==4.2.0
+psycopg2-binary
 gunicorn
+
+# ─── Celery + Redis ────────────────────────────────────────
+celery==5.3.6
+redis==5.0.3
+django-celery-beat==2.6.0
+django-celery-results==2.5.1
+
+# ─── HTTP client ───────────────────────────────────────────
+requests==2.31.0
+
+# ─── Utilidades ────────────────────────────────────────────
+asgiref==3.8.1
+sqlparse==0.5.3

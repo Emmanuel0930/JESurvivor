@@ -1,8 +1,23 @@
+"""
+Capa de Presentación — Vistas de JESurvivor.
+Entregable 2: Endpoints para servicio propio, aliado y terceros (Adapter).
+
+FIX: 'import requests' movido al interior del método AliadoView.get()
+para evitar que un ImportError rompa todo el módulo si el paquete
+no está instalado todavía en el contenedor.
+"""
+
+import os
+
+from django.conf import settings
+from django.utils.translation import gettext as _
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ValidationError
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
+
 from blog.Application.services import (
     CursoNoEncontrado,
     CursoService,
@@ -46,19 +61,16 @@ def resolver_usuario_actual(request):
         )
         return usuario
 
-    requested_user_id = request.headers.get("X-User-Id") or request.query_params.get(
-        "usuario_id"
-    )
+    requested_user_id = request.headers.get("X-User-Id") or request.query_params.get("usuario_id")
     if requested_user_id is not None:
         try:
             user_id = int(requested_user_id)
         except (TypeError, ValueError) as exc:
-            raise ValidationError({"usuario_id": "Debe ser un entero válido."}) from exc
-
+            raise ValidationError({"usuario_id": _("Debe ser un entero válido.")}) from exc
         try:
             return Usuario.objects.get(id=user_id)
         except Usuario.DoesNotExist as exc:
-            raise NotFound("Usuario no encontrado.") from exc
+            raise NotFound(_("Usuario no encontrado.")) from exc
 
     usuario = Usuario.objects.order_by("id").first()
     if usuario is not None:
@@ -76,43 +88,184 @@ def resolver_usuario_actual(request):
     return usuario
 
 
-class UsuarioActualView(APIView):
+class SistemaInfoView(APIView):
     @extend_schema(
-        responses={200: UsuarioActualSerializer, 404: dict},
-        tags=["usuario"],
-        description="Obtiene el usuario actual del dominio o crea un usuario demo si aún no existe.",
+        tags=["sistema"],
+        description="Información pública del sistema JESurvivor. Expuesto para consumo del equipo aliado.",
+        responses={200: dict},
     )
     def get(self, request):
+        from blog.domain.models import KitEspecializado, ReservaKit, Curso
+
+        info = {
+            "sistema": "JESurvivor",
+            "version": "2.0.0",
+            "descripcion": "Plataforma de supervivencia con reservas de kits, cursos especializados y comunidad outdoor.",
+            "estadisticas": {
+                "usuarios_registrados": Usuario.objects.count(),
+                "kits_disponibles": KitEspecializado.objects.filter(stock__gt=0).count(),
+                "reservas_activas": ReservaKit.objects.filter(estado__in=["pendiente", "confirmada"]).count(),
+                "cursos_activos": Curso.objects.filter(activo=True).count(),
+            },
+            "endpoints_publicos": {
+                "kits": "/api/kit/",
+                "cursos": "/api/curso/",
+                "reservas_v2": "/api/v2/reservas/",
+                "clima_supervivencia": "/api/clima/",
+                "docs": "/api/docs/",
+            },
+            "arquitectura": {
+                "monolito": "Django 5 + DRF",
+                "microservicio_reservas": "Flask 3 (Strangler Pattern)",
+                "gateway": "Nginx",
+                "broker_asincrono": "Redis + Celery",
+                "base_datos": "PostgreSQL 16",
+                "infra": "AWS EC2 + Docker Compose",
+            },
+        }
+        return Response(info, status=status.HTTP_200_OK)
+
+
+class ClimaSupervivenciaView(APIView):
+    @extend_schema(
+        tags=["integracion"],
+        description="Consulta clima actual por entorno. Adapter Pattern sobre Open-Meteo (sin API key).",
+        parameters=[
+            OpenApiParameter(
+                name="entorno",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Entorno: montana, selva, urbano, desierto, nieve",
+                required=False,
+                default="urbano",
+            )
+        ],
+        responses={200: dict},
+    )
+    def get(self, request):
+        # Import lazy — no rompe el módulo si 'requests' no está instalado aún
+        from blog.Application.adapters import ClimaService
+
+        entorno = request.query_params.get("entorno", "urbano")
+        entornos_validos = ["montana", "selva", "urbano", "desierto", "nieve"]
+
+        if entorno not in entornos_validos:
+            return Response(
+                {"error": f"Entorno no válido. Opciones: {', '.join(entornos_validos)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        servicio = ClimaService()
+        resultado = servicio.obtener_clima_para_entorno(entorno)
+        return Response(resultado, status=status.HTTP_200_OK)
+
+
+class AliadoView(APIView):
+    @extend_schema(
+        tags=["integracion"],
+        description="Consume el servicio del equipo aliado. Manejo graceful si no está disponible.",
+        responses={200: dict, 503: dict},
+    )
+    def get(self, request):
+        # ─────────────────────────────────────────────────────
+        # Import DENTRO del método para no romper el módulo
+        # si 'requests' no está instalado en el contenedor.
+        # ─────────────────────────────────────────────────────
+        import requests as http_requests
+
+        aliado_url = getattr(settings, "ALIADO_API_URL", "")
+
+        if not aliado_url or "ALIADO_IP" in aliado_url:
+            return Response(
+                {
+                    "fuente": "equipo_aliado",
+                    "estado": "pendiente_configuracion",
+                    "mensaje": "La URL del equipo aliado aún no ha sido configurada.",
+                    "instrucciones": {
+                        "variable": "ALIADO_API_URL",
+                        "ejemplo": "http://54.xxx.xxx.xxx:80/api/info/",
+                        "ubicacion": "docker-compose.yml → servicio django → environment",
+                    },
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        try:
+            response = http_requests.get(aliado_url, timeout=5)
+            response.raise_for_status()
+            return Response(
+                {"fuente": "equipo_aliado", "estado": "conectado", "datos": response.json()},
+                status=status.HTTP_200_OK,
+            )
+        except http_requests.Timeout:
+            return Response(
+                {"fuente": "equipo_aliado", "estado": "timeout", "mensaje": "El servicio aliado no respondió."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except http_requests.ConnectionError:
+            return Response(
+                {"fuente": "equipo_aliado", "estado": "no_disponible", "mensaje": "Sin conexión al aliado."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except Exception as exc:
+            return Response(
+                {"fuente": "equipo_aliado", "estado": "error", "mensaje": str(exc)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+
+class DisparadoReporteView(APIView):
+    @extend_schema(
+        tags=["sistema"],
+        description="Dispara generación asíncrona de reporte mediante Celery + Redis.",
+        responses={202: dict},
+    )
+    def post(self, request):
+        try:
+            from blog.tasks import generar_reporte_reservas  # import lazy
+            task = generar_reporte_reservas.delay()
+            return Response(
+                {
+                    "mensaje": "Reporte en proceso. Se generará en background.",
+                    "task_id": task.id,
+                    "estado": "encolado",
+                    "broker": "Redis + Celery",
+                },
+                status=status.HTTP_202_ACCEPTED,
+            )
+        except Exception as exc:
+            return Response(
+                {
+                    "error": "No se pudo encolar la tarea. Verifica que Redis esté activo.",
+                    "detalle": str(exc),
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+
+# ─── Vistas existentes (sin cambio de lógica) ───────────────
+
+class UsuarioActualView(APIView):
+    @extend_schema(responses={200: UsuarioActualSerializer}, tags=["usuario"],
+                   description="Obtiene el usuario actual del dominio.")
+    def get(self, request):
         usuario = resolver_usuario_actual(request)
-        serializer = UsuarioActualSerializer(usuario)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(UsuarioActualSerializer(usuario).data, status=status.HTTP_200_OK)
 
 
 class ListarKitsView(APIView):
-    @extend_schema(
-        responses={200: KitSerializer(many=True)},
-        tags=["reserva"],
-        description="Lista los kits disponibles para reservar.",
-    )
+    @extend_schema(responses={200: KitSerializer(many=True)}, tags=["reserva"],
+                   description="Lista los kits disponibles para reservar.")
     def get(self, request):
         service = ReservaService()
         kits = service.listar_kits(solo_con_stock=False)
-        serializer = KitSerializer(kits, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(KitSerializer(kits, many=True).data, status=status.HTTP_200_OK)
 
 
 class CrearReservaView(APIView):
-    @extend_schema(
-        request=CrearReservaRequestSerializer,
-        responses={
-            201: CrearReservaResponseSerializer,
-            400: dict,
-            404: dict,
-            403: dict,
-        },
-        tags=["reserva"],
-        description="Crea una reserva de kit para el usuario actual del dominio.",
-    )
+    @extend_schema(request=CrearReservaRequestSerializer,
+                   responses={201: CrearReservaResponseSerializer, 400: dict, 404: dict, 409: dict},
+                   tags=["reserva"], description="Crea una reserva de kit.")
     def post(self, request):
         request_serializer = CrearReservaRequestSerializer(data=request.data)
         request_serializer.is_valid(raise_exception=True)
@@ -121,15 +274,12 @@ class CrearReservaView(APIView):
         kit_id = request_serializer.validated_data["kit_id"]
         inicio = request_serializer.validated_data["inicio"]
         fin = request_serializer.validated_data["fin"]
-
         service = ReservaService()
 
         try:
             reserva = service.crear_reserva(usuario, kit_id, inicio, fin)
-            response_serializer = CrearReservaResponseSerializer(
-                {"reserva_id": reserva.id}
-            )
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            return Response(CrearReservaResponseSerializer({"reserva_id": reserva.id}).data,
+                            status=status.HTTP_201_CREATED)
         except KitNoEncontrado as e:
             return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
         except KitNoDisponible as e:
@@ -141,33 +291,20 @@ class CrearReservaView(APIView):
 
 
 class VerificarDisponibilidadView(APIView):
-    @extend_schema(
-        request=VerificarDisponibilidadRequestSerializer,
-        responses={
-            200: VerificarDisponibilidadResponseSerializer,
-            400: dict,
-            404: dict,
-            409: dict,
-        },
-        tags=["reserva"],
-        description="Verifica si un kit está disponible para un rango de fechas.",
-    )
+    @extend_schema(request=VerificarDisponibilidadRequestSerializer,
+                   responses={200: VerificarDisponibilidadResponseSerializer, 400: dict, 404: dict, 409: dict},
+                   tags=["reserva"], description="Verifica disponibilidad de un kit en fechas.")
     def post(self, request):
         serializer = VerificarDisponibilidadRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         kit_id = serializer.validated_data["kit_id"]
         inicio = serializer.validated_data["inicio"]
         fin = serializer.validated_data["fin"]
-
         service = ReservaService()
 
         try:
             service.verificar_disponibilidad(kit_id, inicio, fin)
-            response_serializer = VerificarDisponibilidadResponseSerializer(
-                {"disponible": True}
-            )
-            return Response(response_serializer.data, status=status.HTTP_200_OK)
+            return Response(VerificarDisponibilidadResponseSerializer({"disponible": True}).data)
         except KitNoEncontrado as e:
             return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
         except KitNoDisponible as e:
@@ -179,32 +316,20 @@ class VerificarDisponibilidadView(APIView):
 
 
 class CancelarReservaView(APIView):
-    @extend_schema(
-        request=CancelarReservaRequestSerializer,
-        responses={
-            200: CancelarReservaResponseSerializer,
-            400: dict,
-            404: dict,
-            409: dict,
-        },
-        tags=["reserva"],
-        description="Cancela una reserva pendiente del usuario actual del dominio.",
-    )
+    @extend_schema(request=CancelarReservaRequestSerializer,
+                   responses={200: CancelarReservaResponseSerializer, 400: dict, 404: dict, 409: dict},
+                   tags=["reserva"], description="Cancela una reserva pendiente.")
     def post(self, request):
         serializer = CancelarReservaRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         reserva_id = serializer.validated_data["reserva_id"]
         usuario = resolver_usuario_actual(request)
-
         service = ReservaService()
 
         try:
             reserva = service.cancelar_reserva(usuario, reserva_id)
-            response_serializer = CancelarReservaResponseSerializer(
-                {"reserva_id": reserva.id, "estado": reserva.estado}
-            )
-            return Response(response_serializer.data, status=status.HTTP_200_OK)
+            return Response(CancelarReservaResponseSerializer(
+                {"reserva_id": reserva.id, "estado": reserva.estado}).data)
         except ReservaNoEncontrada as e:
             return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
         except ReservaNoCancelable as e:
@@ -216,62 +341,38 @@ class CancelarReservaView(APIView):
 
 
 class ListarReservasUsuarioView(APIView):
-    @extend_schema(
-        responses={
-            200: ReservaSerializer(many=True),
-            404: dict,
-        },
-        tags=["reserva"],
-        description="Lista todas las reservas del usuario actual del dominio.",
-    )
+    @extend_schema(responses={200: ReservaSerializer(many=True)}, tags=["reserva"],
+                   description="Lista todas las reservas del usuario actual.")
     def get(self, request):
         service = ReservaService()
         usuario = resolver_usuario_actual(request)
         reservas = service.listar_reservas_de_usuario(usuario)
-        serializer = ReservaSerializer(reservas, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(ReservaSerializer(reservas, many=True).data, status=status.HTTP_200_OK)
 
-
-# --- Cursos ---
 
 class ListarCursosView(APIView):
-    @extend_schema(
-        responses={
-            200: CursoSerializer(many=True),
-        },
-        tags=["curso"],
-        description="Lista todos los cursos disponibles (activos).",
-    )
+    @extend_schema(responses={200: CursoSerializer(many=True)}, tags=["curso"],
+                   description="Lista todos los cursos disponibles (activos).")
     def get(self, request):
         service = CursoService()
         cursos = service.listar_cursos(solo_activos=True)
-        serializer = CursoSerializer(cursos, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(CursoSerializer(cursos, many=True).data, status=status.HTTP_200_OK)
 
 
 class ComprarCursoView(APIView):
-    @extend_schema(
-        request=ComprarCursoRequestSerializer,
-        responses={
-            201: ComprarCursoResponseSerializer,
-            400: dict,
-            404: dict,
-            409: dict,
-        },
-        tags=["curso"],
-        description="Compra un curso para el usuario actual del dominio.",
-    )
+    @extend_schema(request=ComprarCursoRequestSerializer,
+                   responses={201: ComprarCursoResponseSerializer, 400: dict, 404: dict, 409: dict},
+                   tags=["curso"], description="Compra un curso para el usuario actual.")
     def post(self, request):
         serializer = ComprarCursoRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         curso_id = serializer.validated_data["curso_id"]
         usuario = resolver_usuario_actual(request)
-
         service = CursoService()
+
         try:
             compra = service.comprar_curso(usuario, curso_id)
-            response_serializer = ComprarCursoResponseSerializer(compra)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            return Response(ComprarCursoResponseSerializer(compra).data, status=status.HTTP_201_CREATED)
         except CursoNoEncontrado as e:
             return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
         except CursoYaComprado as e:

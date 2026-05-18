@@ -1,3 +1,8 @@
+"""
+Capa de Aplicación — Service Layer de JESurvivor.
+Entregable 2: Integra tareas asíncronas de Celery para notificaciones.
+"""
+
 from blog.Application.Factories import NotificadorFactory
 from blog.domain.builders import ReservaKitBuilder
 from blog.domain.models import CompraCurso, Curso, KitEspecializado, ReservaKit
@@ -36,7 +41,7 @@ class CursoYaComprado(Exception):
 class ReservaService:
     """
     Service Layer para la gestión de reservas de kits.
-    Orquesta el uso de modelos de dominio, builders, validadores y repositorios.
+    Orquesta dominio, builders, validadores, repositorios y tareas asíncronas.
     """
 
     def __init__(self):
@@ -69,15 +74,28 @@ class ReservaService:
         )
 
         self.reserva_repository.guardar(reserva)
-        self.notificador.enviar_confirmacion(reserva)
+
+        # ──────────────────────────────────────────────────────────
+        # Tarea asíncrona: enviar confirmación en background (Celery)
+        # No bloquea la respuesta HTTP — se procesa en el worker
+        # ──────────────────────────────────────────────────────────
+        try:
+            from blog.tasks import enviar_confirmacion_reserva
+            enviar_confirmacion_reserva.delay(
+                reserva_id=reserva.id,
+                usuario_email=getattr(usuario, "email", ""),
+                usuario_nombre=getattr(usuario, "nombre", ""),
+                kit_nombre=kit.nombre,
+                fecha_inicio=str(fecha_inicio),
+                fecha_fin=str(fecha_fin),
+            )
+        except Exception:
+            # Si Celery/Redis no está disponible, usa notificador síncrono (fallback)
+            self.notificador.enviar_confirmacion(reserva)
 
         return reserva
 
     def verificar_disponibilidad(self, kit_id, fecha_inicio, fecha_fin):
-        """
-        Caso de uso: verificar si un kit está disponible en un rango de fechas.
-        Levanta KitNoDisponible si hay conflicto, en caso contrario no levanta excepción.
-        """
         try:
             kit = self.kit_repository.obtener_por_id(kit_id)
         except KitEspecializado.DoesNotExist as exc:
@@ -91,11 +109,6 @@ class ReservaService:
             raise KitNoDisponible("El kit no está disponible en esas fechas.")
 
     def cancelar_reserva(self, usuario, reserva_id):
-        """
-        Caso de uso: cancelar una reserva pendiente del usuario.
-        - Levanta ReservaNoEncontrada si la reserva no existe o no pertenece al usuario.
-        - Levanta ReservaNoCancelable si la reserva no está en estado pendiente.
-        """
         try:
             reserva = self.reserva_repository.obtener_por_id(reserva_id)
         except ReservaKit.DoesNotExist as exc:
@@ -112,19 +125,27 @@ class ReservaService:
         reserva.estado = ReservaKit.EstadoReserva.CANCELADA
         self.reserva_repository.guardar(reserva)
 
+        # Tarea asíncrona: notificar cancelación
+        try:
+            from blog.tasks import enviar_notificacion_cancelacion
+            enviar_notificacion_cancelacion.delay(
+                reserva_id=reserva.id,
+                usuario_email=getattr(usuario, "email", ""),
+                usuario_nombre=getattr(usuario, "nombre", ""),
+                kit_nombre=reserva.kit.nombre,
+            )
+        except Exception:
+            pass  # No bloquear si Celery no está disponible
+
         return reserva
 
     def listar_reservas_de_usuario(self, usuario):
-        """
-        Caso de uso: listar todas las reservas asociadas a un usuario.
-        """
         return self.reserva_repository.listar_por_usuario(usuario)
 
 
 class CursoService:
     """
     Service Layer para la gestión de cursos y compras.
-    Orquesta repositorios y reglas de negocio de cursos.
     """
 
     def __init__(self):
@@ -132,17 +153,9 @@ class CursoService:
         self.compra_curso_repository = CompraCursoRepository()
 
     def listar_cursos(self, solo_activos=True):
-        """
-        Caso de uso: listar todos los cursos (por defecto solo activos).
-        """
         return self.curso_repository.listar_cursos(solo_activos=solo_activos)
 
     def comprar_curso(self, usuario, curso_id):
-        """
-        Caso de uso: comprar un curso para el usuario.
-        - Levanta CursoNoEncontrado si el curso no existe o no está activo.
-        - Levanta CursoYaComprado si el usuario ya compró ese curso.
-        """
         try:
             curso = self.curso_repository.obtener_por_id(curso_id)
         except Curso.DoesNotExist:

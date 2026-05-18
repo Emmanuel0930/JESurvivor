@@ -1,0 +1,68 @@
+# JESurvivor — Archivo de traducción al Español
+# Copyright (C) 2026 Equipo JESurvivor
+# Requerimiento Entregable 2: i18n con gettext, sin textos quemados
+
+msgid ""
+msgstr ""
+"Project-Id-Version: JESurvivor 2.0\n"
+"Report-Msgid-Bugs-To: equipo-jesurvivor@universidad.edu.co\n"
+"Language-Team: Español <es@jesurvivor.local>\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Debe ser un entero válido."
+msgstr "Debe ser un entero válido."
+
+msgid "Usuario no encontrado."
+msgstr "Usuario no encontrado."
+
+msgid "Error inesperado."
+msgstr "Error inesperado."
+
+msgid "Entorno no válido. Opciones: %(entornos)s"
+msgstr "Entorno no válido. Opciones disponibles: %(entornos)s"
+
+msgid "Reporte en proceso. Se generará en background."
+msgstr "Reporte en proceso. Se generará en segundo plano."
+
+msgid "No se pudo encolar la tarea. Verifica que Redis esté activo."
+msgstr "No se pudo encolar la tarea. Verifica que Redis esté activo."
+
+msgid "El servicio del equipo aliado no respondió a tiempo."
+msgstr "El servicio del equipo aliado no respondió a tiempo."
+
+msgid "No se pudo conectar con el servicio del equipo aliado."
+msgstr "No se pudo conectar con el servicio del equipo aliado."
+
+msgid "La URL del equipo aliado aún no ha sido configurada. Actualiza la variable ALIADO_API_URL en docker-compose.yml con la IP EC2 del equipo aliado."
+msgstr "La URL del equipo aliado aún no ha sido configurada. Actualiza la variable ALIADO_API_URL en docker-compose.yml con la IP EC2 del equipo aliado."
+
+msgid "Plataforma de supervivencia con reservas de kits, cursos especializados y comunidad outdoor."
+msgstr "Plataforma de supervivencia con reservas de kits, cursos especializados y comunidad outdoor."
+
+msgid "Kit de montaña"
+msgstr "Kit de Montaña"
+
+msgid "Kit de selva"
+msgstr "Kit de Selva"
+
+msgid "Kit urbano"
+msgstr "Kit Urbano"
+
+msgid "Kit desértico"
+msgstr "Kit Desértico"
+
+msgid "Reserva confirmada"
+msgstr "Reserva Confirmada"
+
+msgid "Reserva cancelada"
+msgstr "Reserva Cancelada"
+
+msgid "Disponible"
+msgstr "Disponible"
+
+msgid "No disponible"
+msgstr "No Disponible"

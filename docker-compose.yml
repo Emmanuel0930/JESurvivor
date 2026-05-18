@@ -19,6 +19,20 @@ services:
       retries: 10
 
   # ─────────────────────────────────────
+  # Redis — Message Broker para Celery
+  # ─────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: jesurvivor_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ─────────────────────────────────────
   # Monolito Django (API v1 / legacy)
   # ─────────────────────────────────────
   django:
@@ -34,12 +48,76 @@ services:
       DB_PASS: postgres
       DJANGO_SECRET_KEY: "django-insecure-051rcf3g-**t#lc$(u726#2f3@v@8i!osf+mv3-#&pdt#3bv56"
       DJANGO_DEBUG: "True"
-      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,django,nginx"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,django,nginx,0.0.0.0"
+      CELERY_BROKER_URL: "redis://redis:6379/0"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/0"
+      ENV_TYPE: "DEV"
+      # ⬇️  URL del equipo aliado — reemplazar con la IP real cuando la tengan
+      ALIADO_API_URL: "http://ALIADO_IP:PORT/api/info/"
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     expose:
       - "8000"
+
+  # ─────────────────────────────────────
+  # Celery Worker — Tareas asíncronas
+  # Procesa notificaciones y reportes en background
+  # ─────────────────────────────────────
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jesurvivor_celery_worker
+    command: celery -A JESurvivor worker --loglevel=info --concurrency=2
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: jesurvivor
+      DB_USER: postgres
+      DB_PASS: postgres
+      DJANGO_SECRET_KEY: "django-insecure-051rcf3g-**t#lc$(u726#2f3@v@8i!osf+mv3-#&pdt#3bv56"
+      DJANGO_DEBUG: "True"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1"
+      CELERY_BROKER_URL: "redis://redis:6379/0"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/0"
+      ENV_TYPE: "DEV"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+
+  # ─────────────────────────────────────
+  # Celery Beat — Programador de tareas periódicas
+  # Lanza reportes y limpieza en horarios definidos
+  # ─────────────────────────────────────
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jesurvivor_celery_beat
+    command: celery -A JESurvivor beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: jesurvivor
+      DB_USER: postgres
+      DB_PASS: postgres
+      DJANGO_SECRET_KEY: "django-insecure-051rcf3g-**t#lc$(u726#2f3@v@8i!osf+mv3-#&pdt#3bv56"
+      DJANGO_DEBUG: "True"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1"
+      CELERY_BROKER_URL: "redis://redis:6379/0"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/0"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   # ─────────────────────────────────────
   # Microservicio Flask (API v2 — Reservas)
@@ -56,14 +134,17 @@ services:
       DB_NAME: jesurvivor
       DB_USER: postgres
       DB_PASS: postgres
+      REDIS_URL: "redis://redis:6379/0"
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     expose:
       - "5000"
 
   # ─────────────────────────────────────
-  # Nginx — Orquestador de tráfico
+  # Nginx — API Gateway / Orquestador de tráfico
   # /api/v2/reservas/ → Flask
   # todo lo demás     → Django
   # ─────────────────────────────────────

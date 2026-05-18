@@ -16,28 +16,12 @@ import { MOCK_POSTS, MOCK_SUBSCRIPTIONS } from "./mockData.js";
 //
 // Nota: esto se resuelve EN CADA REQUEST para que no quede “pegado” por cache/orden de carga.
 function resolveApiBase() {
-  // Permite override manual desde consola o index.html:
-  // window.__API_BASE__ = "http://127.0.0.1:8000/api"
+  // Permite override manual desde consola
   if (typeof window !== "undefined" && window.__API_BASE__) {
     return window.__API_BASE__;
   }
 
-  if (typeof window !== "undefined" && window.location) {
-    const hostname = window.location.hostname;
-    const port = window.location.port;
-
-    const isLocal =
-      hostname === "127.0.0.1" ||
-      hostname === "localhost" ||
-      hostname === "::1";
-    const isBackendOrigin = port === "8000";
-    const isStaticDev = isLocal && !isBackendOrigin; // incluye caso de port vacío
-
-    if (isStaticDev) {
-      return "http://127.0.0.1:8000/api";
-    }
-  }
-
+  // Siempre usar nginx como proxy
   return "/api";
 }
 

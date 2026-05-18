@@ -1,5 +1,5 @@
 """
-Django settings for JESurvivor project — actualizado para Docker + PostgreSQL.
+Django settings for JESurvivor project — Entregable 2.
 """
 
 import os
@@ -17,6 +17,11 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
 ALLOWED_HOSTS_ENV = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS_ENV.split(",")]
 
+# ── Detectar si Celery/Beat están disponibles (instalados) ──────────────────
+def _pkg_available(name):
+    import importlib.util
+    return importlib.util.find_spec(name) is not None
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -30,14 +35,24 @@ INSTALLED_APPS = [
     "blog",
 ]
 
+# Agrega django_celery_beat solo si está instalado
+if _pkg_available("django_celery_beat"):
+    INSTALLED_APPS.append("django_celery_beat")
+
+if _pkg_available("django_celery_results"):
+    INSTALLED_APPS.append("django_celery_results")
+
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "JESurvivor API",
-    "DESCRIPTION": "API documentation for JESurvivor project",
-    "VERSION": "1.0.0",
+    "DESCRIPTION": (
+        "API RESTful de JESurvivor — Plataforma de supervivencia. "
+        "Reservas de kits, cursos e integración con servicios externos."
+    ),
+    "VERSION": "2.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
 
@@ -45,6 +60,7 @@ MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -65,6 +81,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "django.template.context_processors.i18n",
             ],
         },
     },
@@ -72,9 +89,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "JESurvivor.wsgi.application"
 
-# ─────────────────────────────────────────────────────────
-# Base de datos: PostgreSQL (Docker) o SQLite (desarrollo local)
-# ─────────────────────────────────────────────────────────
+# ── Base de datos ────────────────────────────────────────────────────────────
 if os.environ.get("DB_HOST"):
     DATABASES = {
         "default": {
@@ -101,12 +116,37 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-LANGUAGE_CODE = "es-co"
+# ── i18n ─────────────────────────────────────────────────────────────────────
+LANGUAGE_CODE = "es"
+LANGUAGES = [
+    ("es", "Español"),
+    ("en", "English"),
+]
 TIME_ZONE = "America/Bogota"
 USE_I18N = True
+USE_L10N = True
 USE_TZ = True
+
+LOCALE_PATHS = [
+    BASE_DIR / "blog" / "locale",
+]
 
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
 CORS_ALLOW_ALL_ORIGINS = True
+
+# ── Celery + Redis (solo se activa si celery está instalado) ─────────────────
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "America/Bogota"
+
+# ── Email (DEV: solo consola) ─────────────────────────────────────────────────
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = "noreply@jesurvivor.com"
+ENV_TYPE = os.environ.get("ENV_TYPE", "DEV")
+
+# ── URL del equipo aliado ─────────────────────────────────────────────────────
+ALIADO_API_URL = os.environ.get("ALIADO_API_URL", "http://ALIADO_IP/api/info/")
