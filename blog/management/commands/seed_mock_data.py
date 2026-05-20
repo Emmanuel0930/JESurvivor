@@ -7,6 +7,7 @@ from blog.domain.models import (
     CompraCurso,
     Curso,
     KitEspecializado,
+    PostForo,
     Producto,
     ReservaKit,
     Usuario,
@@ -14,7 +15,7 @@ from blog.domain.models import (
 
 
 class Command(BaseCommand):
-    help = "Crea datos mock (usuarios, kits, cursos) para probar endpoints."
+    help = "Crea datos de demostración (usuarios, kits, cursos, posts) para probar endpoints."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -35,7 +36,7 @@ class Command(BaseCommand):
         num_usuarios = options.get("usuarios", 3)
         num_kits = options.get("kits", 5)
 
-        self.stdout.write(self.style.WARNING(f"Seeding mock data (extra: u={num_usuarios}, k={num_kits})..."))
+        self.stdout.write(self.style.WARNING(f"Seeding datos demo (extra: u={num_usuarios}, k={num_kits})..."))
 
         # Usuarios fijos
         usuarios = [
@@ -210,6 +211,42 @@ class Command(BaseCommand):
             )[0],
         ]
 
+        # Posts del foro
+        posts_seed = [
+            {
+                "titulo": "Cómo construir un refugio de emergencia en menos de 2 horas",
+                "contenido": "En situaciones extremas, el tiempo es tu mayor enemigo. Aquí te explico paso a paso cómo levantar un refugio funcional usando solo ramas, hojas y lo que encuentres en el bosque...",
+                "tags": ["refugio", "emergencia", "bosque"],
+                "es_premium": False,
+                "likes": 142,
+                "comentarios_count": 37,
+            },
+            {
+                "titulo": "Guía definitiva: agua potable sin filtros modernos",
+                "contenido": "El agua contaminada mata más personas que la mayoría de desastres naturales. Aprende a purificarla con métodos ancestrales que han salvado vidas durante siglos...",
+                "tags": ["agua", "purificación", "supervivencia"],
+                "es_premium": False,
+                "likes": 98,
+                "comentarios_count": 21,
+            },
+            {
+                "titulo": "Kit de primeros auxilios que REALMENTE necesitas",
+                "contenido": "Olvida los kits genéricos de farmacia. Este listado ha sido refinado durante 10 años de experiencia en zonas de conflicto y desastres naturales...",
+                "tags": ["médico", "kit", "primeros auxilios"],
+                "es_premium": True,
+                "likes": 204,
+                "comentarios_count": 58,
+            },
+        ]
+        for i, payload in enumerate(posts_seed):
+            PostForo.objects.get_or_create(
+                titulo=payload["titulo"],
+                defaults={
+                    **payload,
+                    "usuario": usuarios[i % len(usuarios)],
+                },
+            )
+
         # Compra curso (ejemplo)
         CompraCurso.objects.get_or_create(
             usuario=usuarios[0],
@@ -227,7 +264,7 @@ class Command(BaseCommand):
             defaults={"estado": ReservaKit.EstadoReserva.PENDIENTE},
         )
 
-        self.stdout.write(self.style.SUCCESS("Mock data creado correctamente."))
+        self.stdout.write(self.style.SUCCESS("Datos de demostración creados correctamente."))
         self.stdout.write(
             "Usuarios: "
             + ", ".join([f"{u.id}:{u.email}" for u in usuarios])

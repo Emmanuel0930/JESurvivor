@@ -145,6 +145,29 @@ class Curso(models.Model):
         return self.nombre
 
 
+class PostForo(models.Model):
+    """Publicación del foro de la comunidad."""
+
+    usuario = models.ForeignKey(
+        Usuario,
+        on_delete=models.CASCADE,
+        related_name="posts_foro",
+    )
+    titulo = models.CharField(max_length=200)
+    contenido = models.TextField()
+    tags = models.JSONField(default=list, blank=True)
+    es_premium = models.BooleanField(default=False)
+    likes = models.PositiveIntegerField(default=0)
+    comentarios_count = models.PositiveIntegerField(default=0)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-creado_en"]
+
+    def __str__(self):
+        return self.titulo
+
+
 class CompraCurso(models.Model):
     """Registro de compra de un curso por un usuario."""
 

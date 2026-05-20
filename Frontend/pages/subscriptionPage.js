@@ -3,7 +3,7 @@
 //
 // Flujo:
 //   1. showLoader()
-//   2. getSubscriptions() ← mock → futuro: fetch("GET /api/store/subscriptions")
+//   2. getSubscriptions() — planes UI (pasarela pendiente en backend)
 //   3. renderSubscription(plans)
 //   4. renderPage(html)
 //   5. Registrar eventos de suscripción
@@ -95,12 +95,7 @@ function registerSubEvents() {
     btn.addEventListener("click", () => {
       const planId = btn.dataset.planId;
 
-      // TODO: Redirigir a pasarela de pago (Stripe / PayPal):
-      //   POST /api/store/subscriptions/checkout
-      //   body: { planId, successUrl, cancelUrl }
-      // Requiere autenticación JWT del usuario
-
-      // Feedback visual mientras no hay checkout real
+      // Pasarela de pago pendiente: POST /api/store/subscriptions/checkout
       const original = btn.innerHTML;
       btn.innerHTML  = "Redirigiendo...";
       btn.disabled   = true;

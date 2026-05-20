@@ -28,16 +28,19 @@ from blog.Application.services import (
     ReservaNoEncontrada,
     ReservaService,
 )
-from blog.domain.models import Usuario
+from blog.domain.models import PostForo, Usuario
 from blog.Presentation.serializers import (
     CancelarReservaRequestSerializer,
     CancelarReservaResponseSerializer,
+    CrearPostRequestSerializer,
+    CrearPostResponseSerializer,
     ComprarCursoRequestSerializer,
     ComprarCursoResponseSerializer,
     CrearReservaRequestSerializer,
     CrearReservaResponseSerializer,
     CursoSerializer,
     KitSerializer,
+    PostForoSerializer,
     ReservaSerializer,
     UsuarioActualSerializer,
     VerificarDisponibilidadRequestSerializer,
@@ -378,6 +381,54 @@ class ListarReservasUsuarioView(APIView):
         usuario = resolver_usuario_actual(request)
         reservas = service.listar_reservas_de_usuario(usuario)
         return Response(ReservaSerializer(reservas, many=True).data, status=status.HTTP_200_OK)
+
+
+def serializar_post(post):
+    return {
+        "id": post.id,
+        "titulo": post.titulo,
+        "contenido": post.contenido,
+        "tags": post.tags or [],
+        "es_premium": post.es_premium,
+        "likes": post.likes,
+        "comentarios_count": post.comentarios_count,
+        "creado_en": post.creado_en,
+        "autor_nombre": post.usuario.nombre,
+        "autor_nivel": post.usuario.nivel_experiencia,
+    }
+
+
+class ListarPostsView(APIView):
+    @extend_schema(responses={200: PostForoSerializer(many=True)}, tags=["foro"],
+                   description="Lista los posts del foro.")
+    def get(self, request):
+        posts = PostForo.objects.select_related("usuario").all()
+        data = [serializar_post(p) for p in posts]
+        serializer = PostForoSerializer(data=data, many=True)
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class CrearPostView(APIView):
+    @extend_schema(request=CrearPostRequestSerializer,
+                   responses={201: CrearPostResponseSerializer, 400: dict},
+                   tags=["foro"], description="Crea un post en el foro.")
+    def post(self, request):
+        serializer = CrearPostRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        usuario = resolver_usuario_actual(request)
+        post = PostForo.objects.create(
+            usuario=usuario,
+            titulo=serializer.validated_data["titulo"],
+            contenido=serializer.validated_data["contenido"],
+            tags=serializer.validated_data.get("tags") or [],
+            es_premium=serializer.validated_data.get("es_premium", False),
+        )
+        return Response(
+            CrearPostResponseSerializer({"post_id": post.id}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class ListarCursosView(APIView):

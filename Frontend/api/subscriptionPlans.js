@@ -1,0 +1,58 @@
+// Planes de suscripción (UI estática hasta tener pasarela en backend)
+
+export const SUBSCRIPTION_PLANS = [
+  {
+    id: 1,
+    name: "FREE",
+    price: 0,
+    period: "para siempre",
+    badge: null,
+    badgeIcon: null,
+    color: "#6b7280",
+    features: [
+      "Acceso al foro público",
+      "Ver posts básicos",
+      "Acceso a cursos gratuitos",
+      "Comprar en la tienda",
+    ],
+    locked: [],
+  },
+  {
+    id: 2,
+    name: "SURVIVOR PRO",
+    price: 9.99,
+    period: "mes",
+    badge: "⚡ SURVIVOR",
+    badgeIcon: "⚡",
+    color: "#f59e0b",
+    features: [
+      "Todo lo de FREE",
+      "Badge exclusivo ⚡ en el foro",
+      "Acceso a posts premium",
+      "Todos los cursos desbloqueados",
+      "Descuentos 15% en tienda",
+      "Chat privado con instructores",
+    ],
+    locked: [],
+    popular: true,
+  },
+  {
+    id: 3,
+    name: "ELITE GHOST",
+    price: 24.99,
+    period: "mes",
+    badge: "💀 GHOST",
+    badgeIcon: "💀",
+    color: "#ef4444",
+    features: [
+      "Todo lo de SURVIVOR PRO",
+      "Badge 💀 GHOST exclusivo",
+      "Acceso anticipado a nuevos cursos",
+      "Descuentos 30% en tienda",
+      "Sesiones 1:1 con expertos",
+      "Comunidad privada Discord",
+      "Kit físico de bienvenida",
+    ],
+    locked: [],
+  },
+];

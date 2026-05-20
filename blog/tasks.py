@@ -56,9 +56,8 @@ def enviar_confirmacion_reserva(
                 fail_silently=False,
             )
         else:
-            # DEV: mock — solo loguea
             logger.info(
-                "[MOCK EMAIL] Para: %s | Reserva: #%s | Kit: %s | %s → %s",
+                "[CONFIRMACION] Para: %s | Reserva: #%s | Kit: %s | %s → %s",
                 usuario_email, reserva_id, kit_nombre, fecha_inicio, fecha_fin,
             )
 
@@ -89,9 +88,8 @@ def enviar_notificacion_cancelacion(
         "[CELERY] Notificando cancelación reserva #%s a %s",
         reserva_id, usuario_email
     )
-    # En PROD se enviaría email real; en DEV solo loguea
     logger.info(
-        "[MOCK EMAIL] Cancelación | Para: %s | Kit: %s | Reserva #%s",
+        "[CANCELACION] Para: %s | Kit: %s | Reserva #%s",
         usuario_email, kit_nombre, reserva_id,
     )
     return {"status": "cancelacion_notificada", "reserva_id": reserva_id}

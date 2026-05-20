@@ -3,13 +3,13 @@
 //
 // Flujo:
 //   1. showLoader()
-//   2. getPosts()  ← mock → futuro: fetch("GET /api/posts")
+//   2. getPosts()  ← GET /api/posts/
 //   3. renderPostList(posts)
 //   4. renderPage(html)
 //   5. Registrar eventos del DOM (filtros, botones)
 // ============================================================
 
-import { getPosts } from "../api/api.js";
+import { createPost, getPosts } from "../api/api.js";
 import { renderPostList } from "../components/postList.js";
 import { renderPage, showError } from "../utils/render.js";
 import { showSkeletonForum } from "../components/skeleton.js";
@@ -17,8 +17,7 @@ import { closeModal, showModal, showToast } from "../utils/modal.js";
 
 /**
  * Carga y renderiza la página del foro.
- * Llama a getPosts() — cuando el backend esté listo esa
- * función hará fetch a GET /api/posts automáticamente.
+ * Carga posts desde GET /api/posts/ y permite crear con POST /api/posts/crear/.
  */
 export async function forumPage() {
   // Muestra skeleton con la forma exacta de la página del foro
@@ -26,10 +25,6 @@ export async function forumPage() {
   showSkeletonForum(5);
 
   try {
-    // ── Obtener posts ──────────────────────────────────────
-    // TODO (backend): getPosts() ya tiene el fetch comentado.
-    //   Solo hay que descomentar la línea en api/api.js:
-    //   const res = await fetch("/api/posts");
     const res = await getPosts();
 
     if (!res.ok) {
@@ -73,10 +68,6 @@ export async function forumPage() {
 
         <!-- Toolbar: nuevo post + filtros -->
         <div class="forum-toolbar">
-          <!--
-            TODO: Botón "Nuevo Post" → conectar con
-            POST /api/posts (requiere autenticación JWT)
-          -->
           <button class="btn btn-primary" id="btn-new-post">
             + Nuevo Post
           </button>
@@ -147,14 +138,9 @@ function registerNewPostButton() {
       <input id="post-title" class="modal-input" type="text" placeholder="Ej. Kit esencial para 72h" required />
       <label class="modal-label" for="post-body">Contenido</label>
       <textarea id="post-body" class="modal-textarea" rows="5" placeholder="Comparte tu experiencia o pregunta..." required></textarea>
-      <p class="modal-hint">Vista previa — conectar con POST /api/posts cuando el backend esté listo.</p>
+      <label class="modal-label" for="post-tags">Etiquetas (opcional, separadas por coma)</label>
+      <input id="post-tags" class="modal-input" type="text" placeholder="refugio, agua, emergencia" />
     `;
-
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      closeModal();
-      showToast("Publicación guardada en borrador (mock).", "success");
-    });
 
     const footer = document.createElement("div");
     footer.className = "modal-footer-actions";
@@ -164,6 +150,38 @@ function registerNewPostButton() {
     `;
     form.id = "post-form";
     footer.querySelector("[data-modal-cancel]").addEventListener("click", () => closeModal());
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const title = document.getElementById("post-title")?.value?.trim();
+      const content = document.getElementById("post-body")?.value?.trim();
+      const tagsRaw = document.getElementById("post-tags")?.value?.trim();
+      const tags = tagsRaw
+        ? tagsRaw.split(",").map((t) => t.trim()).filter(Boolean)
+        : [];
+
+      if (!title || !content) {
+        showToast("Título y contenido son obligatorios.", "error");
+        return;
+      }
+
+      const submitBtn = footer.querySelector('button[type="submit"]');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Publicando...";
+      }
+
+      const res = await createPost({ title, content, tags });
+      closeModal();
+
+      if (!res.ok) {
+        showToast(res.error || "No se pudo publicar el post.", "error");
+        return;
+      }
+
+      showToast("Post publicado correctamente.", "success");
+      await forumPage();
+    });
 
     showModal({
       title: "Nuevo post",

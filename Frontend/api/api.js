@@ -1,9 +1,8 @@
 // ============================================================
-// api.js — Capa de API de JESurvivor
-// Entregable 2: Nuevas funciones para endpoints de integración.
+// api.js — Capa de API de JESurvivor (llamadas reales al backend)
 // ============================================================
 
-import { MOCK_POSTS, MOCK_SUBSCRIPTIONS } from "./mockData.js";
+import { SUBSCRIPTION_PLANS } from "./subscriptionPlans.js";
 
 function resolveApiBase() {
   if (typeof window !== "undefined" && window.__API_BASE__) {
@@ -42,10 +41,16 @@ const USER_AVATARS = {
   avanzado: "⚔️",
 };
 
+const POST_AVATARS = {
+  basico: "🧭",
+  intermedio: "🔥",
+  avanzado: "⚔️",
+};
+
 let currentUserCache = null;
 
-const fakeDelay = (ms = 500) => new Promise((resolve) => setTimeout(resolve, ms));
-const mockResponse = (data) => ({ ok: true, data });
+const ok = (data) => ({ ok: true, data });
+const fail = (error, status = null) => ({ ok: false, error, status });
 
 async function parseJsonSafely(res) {
   const text = await res.text();
@@ -55,6 +60,20 @@ async function parseJsonSafely(res) {
   } catch {
     return null;
   }
+}
+
+function extractErrorMessage(data, status) {
+  if (!data) return `Error del servidor (${status})`;
+  if (typeof data.error === "string") return data.error;
+  if (typeof data.detail === "string") return data.detail;
+  if (Array.isArray(data.non_field_errors)) return data.non_field_errors.join(" ");
+
+  const parts = [];
+  for (const [key, value] of Object.entries(data)) {
+    if (Array.isArray(value)) parts.push(`${key}: ${value.join(", ")}`);
+    else if (typeof value === "string") parts.push(value);
+  }
+  return parts.length ? parts.join(" ") : `Error del servidor (${status})`;
 }
 
 async function apiRequest(path, options = {}) {
@@ -70,7 +89,11 @@ async function apiRequest(path, options = {}) {
   });
   const data = await parseJsonSafely(res);
   if (!res.ok) {
-    throw new Error(data?.error || "No se pudo completar la solicitud.");
+    const message = extractErrorMessage(data, res.status);
+    const err = new Error(message);
+    err.status = res.status;
+    err.data = data;
+    throw err;
   }
   return data;
 }
@@ -121,6 +144,25 @@ function mapKit(kit) {
   };
 }
 
+function mapPost(post) {
+  const level = post.autor_nivel || "basico";
+  const created = post.creado_en || "";
+  const dateStr = typeof created === "string" ? created.split("T")[0] : created;
+
+  return {
+    id: post.id,
+    title: post.titulo,
+    author: post.autor_nombre,
+    avatar: POST_AVATARS[level] || "🧭",
+    content: post.contenido,
+    tags: Array.isArray(post.tags) ? post.tags : [],
+    likes: post.likes ?? 0,
+    comments: post.comentarios_count ?? 0,
+    date: dateStr,
+    isPremium: Boolean(post.es_premium),
+  };
+}
+
 async function ensureCurrentUser() {
   if (currentUserCache) return currentUserCache;
   const user = await apiRequest("/usuario/actual/");
@@ -133,49 +175,76 @@ async function getUserHeaders() {
   return { "X-User-Id": String(user.backendId) };
 }
 
-// ─── Existentes ───────────────────────────────────────────────
+// ─── Foro ─────────────────────────────────────────────────────
 
 export async function getPosts() {
-  await fakeDelay(400);
-  return mockResponse(MOCK_POSTS);
+  try {
+    const posts = await apiRequest("/posts/");
+    return ok(posts.map(mapPost));
+  } catch (error) {
+    return fail(error.message, error.status);
+  }
 }
 
 export async function getPostById(id) {
-  await fakeDelay(300);
-  const post = MOCK_POSTS.find((p) => p.id === id);
-  if (!post) return { ok: false, error: "Post no encontrado" };
-  return mockResponse(post);
+  try {
+    const posts = await apiRequest("/posts/");
+    const post = posts.map(mapPost).find((p) => p.id === Number(id));
+    if (!post) return fail("Post no encontrado", 404);
+    return ok(post);
+  } catch (error) {
+    return fail(error.message, error.status);
+  }
 }
+
+export async function createPost({ title, content, tags = [] }) {
+  try {
+    const headers = await getUserHeaders();
+    const data = await apiRequest("/posts/crear/", {
+      method: "POST",
+      headers,
+      body: {
+        titulo: title,
+        contenido: content,
+        tags,
+      },
+    });
+    return ok(data);
+  } catch (error) {
+    return fail(error.message, error.status);
+  }
+}
+
+// ─── Tienda y cursos ──────────────────────────────────────────
 
 export async function getKits() {
   try {
     const kits = await apiRequest("/kit/");
-    return mockResponse(kits.map(mapKit));
+    return ok(kits.map(mapKit));
   } catch (error) {
-    return { ok: false, error: error.message };
+    return fail(error.message, error.status);
   }
 }
 
 export async function getCourses() {
   try {
     const courses = await apiRequest("/curso/");
-    return mockResponse(courses.map(mapCourse));
+    return ok(courses.map(mapCourse));
   } catch (error) {
-    return { ok: false, error: error.message };
+    return fail(error.message, error.status);
   }
 }
 
 export async function getSubscriptions() {
-  await fakeDelay(350);
-  return mockResponse(MOCK_SUBSCRIPTIONS);
+  return ok(SUBSCRIPTION_PLANS);
 }
 
 export async function getCurrentUser() {
   try {
     const user = await ensureCurrentUser();
-    return mockResponse(user);
+    return ok(user);
   } catch (error) {
-    return { ok: false, error: error.message };
+    return fail(error.message, error.status);
   }
 }
 
@@ -187,9 +256,9 @@ export async function buyCourse(courseId) {
       headers,
       body: { curso_id: Number(courseId) },
     });
-    return mockResponse(data);
+    return ok(data);
   } catch (error) {
-    return { ok: false, error: error.message };
+    return fail(error.message, error.status);
   }
 }
 
@@ -201,91 +270,67 @@ export async function reserveKit(kitId, inicio, fin) {
       headers,
       body: { kit_id: Number(kitId), inicio, fin },
     });
-    return mockResponse(data);
+    return ok(data);
   } catch (error) {
-    return { ok: false, error: error.message };
+    return fail(error.message, error.status);
   }
 }
 
-// ─── NUEVAS — Entregable 2 ────────────────────────────────────
+// ─── Integraciones (Entregable 2) ─────────────────────────────
 
-/**
- * GET /api/sistema/info/
- * Información del sistema expuesta para el equipo aliado.
- */
 export async function getSistemaInfo() {
   try {
     const data = await apiRequest("/sistema/info/");
-    return mockResponse(data);
+    return ok(data);
   } catch (error) {
-    return { ok: false, error: error.message };
+    return fail(error.message, error.status);
   }
 }
 
-/**
- * GET /api/clima/?entorno=X
- * Adapter Pattern sobre Open-Meteo. Entornos: montana, selva, urbano, desierto, nieve
- */
 export async function getClima(entorno = "urbano") {
   try {
     const data = await apiRequest(`/clima/?entorno=${entorno}`);
-    return mockResponse(data);
+    return ok(data);
   } catch (error) {
-    return { ok: false, error: error.message };
+    return fail(error.message, error.status);
   }
 }
 
-/**
- * GET /api/aliado/
- * Consumo del servicio del equipo aliado.
- */
 export async function getAliado() {
   try {
     const data = await apiRequest("/aliado/");
-    return mockResponse(data);
+    return ok(data);
   } catch (error) {
-    return { ok: false, error: error.message };
+    return fail(error.message, error.status);
   }
 }
 
-/**
- * POST /api/tareas/reporte/
- * Dispara una tarea asíncrona en Celery + Redis.
- */
 export async function dispararReporte() {
   try {
     const data = await apiRequest("/tareas/reporte/", { method: "POST" });
-    return mockResponse(data);
+    return ok(data);
   } catch (error) {
-    return { ok: false, error: error.message };
+    return fail(error.message, error.status);
   }
 }
 
-/**
- * GET /api/tareas/estado/<task_id>/
- * Consulta el estado y resultado de una tarea Celery.
- */
 export async function getEstadoTarea(taskId) {
   try {
     const data = await apiRequest(`/tareas/estado/${taskId}/`);
-    return mockResponse(data);
+    return ok(data);
   } catch (error) {
-    return { ok: false, error: error.message };
+    return fail(error.message, error.status);
   }
 }
 
-/**
- * GET /api/v2/reservas/health
- * Health check del microservicio Flask (Strangler Pattern).
- */
 export async function getFlaskHealth() {
   try {
     const base = resolveApiBase().replace("/api", "");
     const res = await fetch(`${base}/api/v2/reservas/health`);
     const data = await parseJsonSafely(res);
     if (!res.ok) throw new Error("Flask no disponible");
-    return mockResponse(data);
+    return ok(data);
   } catch (error) {
-    return { ok: false, error: error.message };
+    return fail(error.message);
   }
 }

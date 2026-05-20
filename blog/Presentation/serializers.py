@@ -77,3 +77,34 @@ class ComprarCursoResponseSerializer(serializers.Serializer):
     compra_id = serializers.IntegerField(source="id")
     curso_id = serializers.IntegerField(source="curso.id")
     fecha_compra = serializers.DateTimeField()
+
+
+# --- Foro ---
+
+class PostForoSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    titulo = serializers.CharField()
+    contenido = serializers.CharField()
+    tags = serializers.ListField(child=serializers.CharField(), allow_empty=True)
+    es_premium = serializers.BooleanField()
+    likes = serializers.IntegerField()
+    comentarios_count = serializers.IntegerField()
+    creado_en = serializers.DateTimeField()
+    autor_nombre = serializers.CharField()
+    autor_nivel = serializers.CharField()
+
+
+class CrearPostRequestSerializer(serializers.Serializer):
+    titulo = serializers.CharField(max_length=200)
+    contenido = serializers.CharField()
+    tags = serializers.ListField(
+        child=serializers.CharField(max_length=40),
+        required=False,
+        allow_empty=True,
+        default=list,
+    )
+    es_premium = serializers.BooleanField(required=False, default=False)
+
+
+class CrearPostResponseSerializer(serializers.Serializer):
+    post_id = serializers.IntegerField()

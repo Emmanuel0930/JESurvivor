@@ -3,8 +3,10 @@ from blog.Presentation.views import (
     # Existentes
     CancelarReservaView,
     ComprarCursoView,
+    CrearPostView,
     CrearReservaView,
     ListarKitsView,
+    ListarPostsView,
     ListarCursosView,
     ListarReservasUsuarioView,
     UsuarioActualView,
@@ -20,6 +22,10 @@ from blog.Presentation.views import (
 urlpatterns = [
     # ── Usuario ─────────────────────────────────────────
     path("usuario/actual/", UsuarioActualView.as_view(), name="usuario-actual"),
+
+    # ── Foro ────────────────────────────────────────────
+    path("posts/", ListarPostsView.as_view(), name="listar-posts"),
+    path("posts/crear/", CrearPostView.as_view(), name="crear-post"),
 
     # ── Kits y Reservas ─────────────────────────────────
     path("kit/", ListarKitsView.as_view(), name="listar-kits"),
