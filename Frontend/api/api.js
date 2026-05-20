@@ -334,3 +334,12 @@ export async function getFlaskHealth() {
     return fail(error.message);
   }
 }
+
+export async function getBiblioteca(tema = "supervivencia") {
+  try {
+    const data = await apiRequest(`/biblioteca/?tema=${tema}`);
+    return ok(data);
+  } catch (error) {
+    return fail(error.message, error.status);
+  }
+}

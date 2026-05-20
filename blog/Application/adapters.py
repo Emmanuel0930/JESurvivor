@@ -246,3 +246,99 @@ class ClimaService:
             alertas.append("💨 VIENTOS EXTREMOS — evitar zonas expuestas")
 
         return " | ".join(alertas) if alertas else None
+
+
+# ═══════════════════════════════════════════════════════════════
+# PUERTO 2: Biblioteca de Supervivencia
+# Segunda API de terceros — Open Library (openlibrary.org)
+# Gratuita, sin API key. Implementa IBibliotecaAdapter (DIP).
+# Contexto: el equipo aliado no entregó su API a tiempo.
+# Se añadió esta integración para cumplir el requerimiento
+# de consumo de servicio externo con valor para el dominio.
+# ═══════════════════════════════════════════════════════════════
+
+class IBibliotecaAdapter(abc.ABC):
+    """Puerto de salida para proveedores bibliográficos (DIP)."""
+    @abc.abstractmethod
+    def buscar_libros_supervivencia(self, query: str, limite: int) -> dict: ...
+    @abc.abstractmethod
+    def obtener_nombre_proveedor(self) -> str: ...
+
+
+class OpenLibraryAdapter(IBibliotecaAdapter):
+    """
+    Adaptador concreto para Open Library (https://openlibrary.org/).
+    Traduce la respuesta de Open Library al contrato IBibliotecaAdapter.
+    """
+    BASE_URL  = "https://openlibrary.org/search.json"
+    COVER_URL = "https://covers.openlibrary.org/b/id/{cover_id}-M.jpg"
+    TIMEOUT   = 8
+
+    def obtener_nombre_proveedor(self) -> str:
+        return "Open Library (openlibrary.org)"
+
+    def buscar_libros_supervivencia(self, query: str = "wilderness survival", limite: int = 6) -> dict:
+        try:
+            r = requests.get(self.BASE_URL, params={
+                "q": query, "limit": limite,
+                "fields": "title,author_name,first_publish_year,cover_i,key",
+            }, timeout=self.TIMEOUT)
+            r.raise_for_status()
+            data = r.json()
+            libros = []
+            for doc in data.get("docs", [])[:limite]:
+                cover_id = doc.get("cover_i")
+                libros.append({
+                    "titulo":      doc.get("title", "Sin título"),
+                    "autores":     doc.get("author_name", ["Autor desconocido"])[:2],
+                    "año":         doc.get("first_publish_year"),
+                    "portada_url": self.COVER_URL.format(cover_id=cover_id) if cover_id else None,
+                    "enlace":      f"https://openlibrary.org{doc.get('key', '')}",
+                })
+            return {
+                "total_encontrados": data.get("numFound", 0),
+                "query": query, "libros": libros,
+                "fuente": self.obtener_nombre_proveedor(), "error": None,
+            }
+        except requests.Timeout:
+            return self._error("Timeout al conectar con Open Library")
+        except Exception as e:
+            logger.error("[OpenLibraryAdapter] Error: %s", e)
+            return self._error(str(e))
+
+    def _error(self, msg):
+        return {"total_encontrados": 0, "query": "", "libros": [],
+                "fuente": self.obtener_nombre_proveedor(), "error": msg}
+
+
+class BibliotecaService:
+    """Servicio para consultas bibliográficas. Depende de IBibliotecaAdapter (DIP)."""
+
+    QUERIES_POR_TEMA = {
+        "supervivencia":     "wilderness survival skills",
+        "primeros_auxilios": "first aid wilderness emergency",
+        "navegacion":        "navigation orienteering outdoor",
+        "refugio":           "bushcraft shelter building survival",
+        "agua":              "water purification survival wilderness",
+        "plantas":           "edible plants wilderness foraging",
+    }
+
+    def __init__(self, adapter: Optional[IBibliotecaAdapter] = None):
+        self._adapter = adapter or OpenLibraryAdapter()
+
+    def obtener_libros_por_tema(self, tema: str = "supervivencia") -> dict:
+        query     = self.QUERIES_POR_TEMA.get(tema, self.QUERIES_POR_TEMA["supervivencia"])
+        resultado = self._adapter.buscar_libros_supervivencia(query=query, limite=6)
+        resultado["tema"]        = tema
+        resultado["descripcion"] = self._describir_tema(tema)
+        return resultado
+
+    def _describir_tema(self, tema: str) -> str:
+        return {
+            "supervivencia":     "Guías esenciales de supervivencia en entornos naturales",
+            "primeros_auxilios": "Técnicas de primeros auxilios en campo y emergencias",
+            "navegacion":        "Orientación, mapas y navegación sin tecnología",
+            "refugio":           "Construcción de refugios y técnicas de bushcraft",
+            "agua":              "Obtención y purificación de agua en el campo",
+            "plantas":           "Identificación de plantas comestibles y medicinales",
+        }.get(tema, "Recursos de supervivencia y outdoor")

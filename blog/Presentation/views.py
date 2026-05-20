@@ -462,3 +462,36 @@ class ComprarCursoView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception:
             return Response({"error": "Error inesperado."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# ─── Nueva vista: Biblioteca de Supervivencia (Adapter 2) ─────────────────────
+
+class BibliotecaSupervivenciaView(APIView):
+    """
+    Segunda API de terceros — Open Library (https://openlibrary.org/).
+    Gratuita, sin API key. Implementa Adapter Pattern sobre IBibliotecaAdapter.
+
+    El equipo aliado no entregó su API. Se implementó esta integración
+    adicional para cumplir el requerimiento con valor real para el dominio.
+    """
+    TEMAS_VALIDOS = ["supervivencia", "primeros_auxilios", "navegacion", "refugio", "agua", "plantas"]
+
+    @extend_schema(
+        tags=["integracion"],
+        description=(
+            "Busca libros de supervivencia en Open Library (API pública, sin key). "
+            "Patrón Adapter sobre IBibliotecaAdapter. "
+            "Temas: supervivencia, primeros_auxilios, navegacion, refugio, agua, plantas."
+        ),
+        parameters=[OpenApiParameter("tema", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                    description="Tema de búsqueda", required=False, default="supervivencia")],
+        responses={200: dict},
+    )
+    def get(self, request):
+        from blog.Application.adapters import BibliotecaService
+        tema = request.query_params.get("tema", "supervivencia")
+        if tema not in self.TEMAS_VALIDOS:
+            return Response(
+                {"error": f"Tema no válido. Opciones: {', '.join(self.TEMAS_VALIDOS)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(BibliotecaService().obtener_libros_por_tema(tema), status=status.HTTP_200_OK)

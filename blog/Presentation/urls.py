@@ -15,6 +15,7 @@ from blog.Presentation.views import (
     SistemaInfoView,
     ClimaSupervivenciaView,
     AliadoView,
+    BibliotecaSupervivenciaView,
     DisparadoReporteView,
     EstadoTareaView,
 )
@@ -48,4 +49,5 @@ urlpatterns = [
     # ── Integraciones externas (Entregable 2) ────────────
     path("clima/", ClimaSupervivenciaView.as_view(), name="clima-supervivencia"),
     path("aliado/", AliadoView.as_view(), name="servicio-aliado"),
+    path("biblioteca/", BibliotecaSupervivenciaView.as_view(), name="biblioteca-supervivencia"),
 ]

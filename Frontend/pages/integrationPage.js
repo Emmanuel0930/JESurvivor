@@ -3,7 +3,7 @@
 // FIX: waitFor() espera a que el DOM esté listo antes de pintar.
 // ============================================================
 
-import { getSistemaInfo, getClima, getAliado, dispararReporte, getEstadoTarea, getFlaskHealth } from "../api/api.js";
+import { getSistemaInfo, getClima, getAliado, getBiblioteca, dispararReporte, getEstadoTarea, getFlaskHealth } from "../api/api.js";
 import { renderPage } from "../utils/render.js";
 
 const ENTORNOS = [
@@ -12,6 +12,15 @@ const ENTORNOS = [
   { id: "selva",    label: "Selva",    icon: "🌿" },
   { id: "desierto", label: "Desierto", icon: "🏜️" },
   { id: "nieve",    label: "Nieve",    icon: "❄️" },
+];
+
+const TEMAS = [
+  { id:"supervivencia",    label:"Supervivencia",    icon:"🏕️" },
+  { id:"primeros_auxilios",label:"Primeros Auxilios",icon:"🏥" },
+  { id:"navegacion",       label:"Navegación",       icon:"🧭" },
+  { id:"refugio",          label:"Refugio",          icon:"⛺" },
+  { id:"agua",             label:"Agua",             icon:"💧" },
+  { id:"plantas",          label:"Plantas",          icon:"🌿" },
 ];
 
 // Espera hasta 3s a que un elemento exista en el DOM
@@ -47,6 +56,8 @@ export async function integrationPage() {
   await loadClima("urbano");
   registerClimaEvents();
   registerReporteEvent();
+  await loadBiblioteca("supervivencia");
+  registerBibliotecaEvents();
 }
 
 function buildShell() {
@@ -118,6 +129,22 @@ function buildShell() {
           </div>
         </div>
       </div>
+
+      <div class="integ-card integ-card--full" id="panel-biblioteca">
+        <div class="integ-card-header">
+          <div class="integ-card-icon purple">📚</div>
+          <div>
+            <div class="integ-card-title">Biblioteca de Supervivencia <span class="integ-api-tag">API #2</span></div>
+            <div class="integ-card-subtitle">GET /api/biblioteca/?tema=X · Adapter Pattern → Open Library (sin API key)</div>
+          </div>
+          <div class="integ-badge integ-badge--ok"><span class="badge-dot"></span>LIVE</div>
+        </div>
+        <div class="clima-tabs" id="bib-tabs">
+          ${TEMAS.map((t) => `<button class="clima-tab ${t.id === "supervivencia" ? "active" : ""}" data-tema="${t.id}"><span>${t.icon}</span><span>${t.label}</span></button>`).join("")}
+        </div>
+        <div class="integ-card-body" id="body-biblioteca">${buildPulse(3)}</div>
+      </div>
+
     </section>
   `;
 }
@@ -348,3 +375,38 @@ function buildStat(icon,value,label) { return `<div class="sistema-stat"><span c
 function buildMeta(label,value,amber) { return `<div class="integ-meta-item"><span class="meta-label">${label}</span><span class="meta-value ${amber?"c-amber":""}">${value}</span></div>`; }
 function buildClimaRow(icon,label,value) { return `<div class="clima-row"><span class="clima-row-icon">${icon}</span><span class="clima-row-label">${label}</span><span class="clima-row-value">${value}</span></div>`; }
 function buildFlaskRow(label,value,highlight) { return `<div class="flask-row"><span class="meta-label">${label}</span><span class="meta-value ${highlight?"c-amber":""}">${value}</span></div>`; }
+async function loadBiblioteca(tema) {
+  const body = document.getElementById("body-biblioteca");
+  if (!body) return;
+  body.innerHTML = buildPulse(3);
+  const res = await getBiblioteca(tema);
+  if (!res.ok) { body.innerHTML = buildError(res.error); return; }
+  const d = res.data;
+  const librosHtml = d.libros?.length
+    ? d.libros.map(l => `
+        <a class="libro-card" href="${l.enlace}" target="_blank" rel="noopener noreferrer">
+          <div class="libro-cover">${l.portada_url ? `<img src="${l.portada_url}" alt="Portada ${l.titulo}" loading="lazy"/>` : "📖"}</div>
+          <div class="libro-info">
+            <div class="libro-titulo">${l.titulo}</div>
+            <div class="libro-autor">${(l.autores || []).join(", ") || "Desconocido"}</div>
+            ${l.año ? `<div class="libro-anio">${l.año}</div>` : ""}
+          </div>
+        </a>`).join("")
+    : `<div class="integ-error"><span>📭</span><p>No se encontraron libros para este tema.</p></div>`;
+  body.innerHTML = `
+    <p class="bib-desc">${d.descripcion || ""} <span class="bib-total">(${d.total_encontrados?.toLocaleString() || "—"} resultados en Open Library)</span></p>
+    <div class="libros-grid">${librosHtml}</div>
+    <div class="integ-source">Fuente: ${d.fuente || "Open Library"} · Adapter Pattern (DIP) · API gratuita sin key</div>`;
+}
+
+function registerBibliotecaEvents() {
+  const tabs = document.getElementById("bib-tabs");
+  if (!tabs) return;
+  tabs.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".clima-tab");
+    if (!btn) return;
+    tabs.querySelectorAll(".clima-tab").forEach((t) => t.classList.remove("active"));
+    btn.classList.add("active");
+    await loadBiblioteca(btn.dataset.tema);
+  });
+}
