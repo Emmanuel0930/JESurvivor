@@ -54,9 +54,14 @@ function buildCourseCard(course) {
     ctaHTML = `<button class="btn btn-locked" disabled aria-label="Requiere suscripción">🔒 Suscríbete</button>`;
   } else {
     ctaHTML = `
-      <button class="btn btn-primary" data-course-id="${course.id}" aria-label="Comprar curso ${course.title}">
-        ${course.price === 0 ? "Inscribirse" : "Comprar curso"}
-      </button>
+      <div class="course-actions">
+        <button type="button" class="btn btn-ghost" data-add-course="${course.id}" aria-label="Añadir ${course.title} al carrito">
+          Al carrito
+        </button>
+        <button type="button" class="btn btn-primary" data-course-id="${course.id}" aria-label="Comprar curso ${course.title}">
+          ${course.price === 0 ? "Inscribirse" : "Comprar"}
+        </button>
+      </div>
     `;
   }
 
@@ -65,6 +70,9 @@ function buildCourseCard(course) {
       class="course-card ${isPremium ? "is-premium" : ""}"
       role="listitem"
       data-course-id="${course.id}"
+      data-course-title="${course.title}"
+      data-course-price="${course.price}"
+      data-course-image="${course.image}"
     >
       <!-- Miniatura -->
       <div class="course-thumb" aria-hidden="true">${course.image}</div>

@@ -46,7 +46,14 @@ function buildKitCard(kit) {
     .join("");
 
   return `
-    <div class="kit-card" role="listitem" data-kit-id="${kit.id}">
+    <div
+      class="kit-card"
+      role="listitem"
+      data-kit-id="${kit.id}"
+      data-kit-name="${kit.name}"
+      data-kit-price="${kit.price}"
+      data-kit-image="${kit.image}"
+    >
       ${cornerBadge}
 
       <!-- Área visual / ícono -->
@@ -96,13 +103,24 @@ function buildKitCard(kit) {
             <span class="kit-price" aria-label="Precio: $${kit.price.toFixed(2)}">
               $${kit.price.toFixed(2)}
             </span>
-            <button
-              class="btn btn-primary"
-              data-kit-id="${kit.id}"
-              aria-label="Reservar ${kit.name}"
-            >
-              Reservar
-            </button>
+            <div class="kit-actions">
+              <button
+                type="button"
+                class="btn btn-ghost"
+                data-add-kit="${kit.id}"
+                aria-label="Añadir ${kit.name} al carrito"
+              >
+                Al carrito
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary"
+                data-kit-id="${kit.id}"
+                aria-label="Reservar ${kit.name}"
+              >
+                Reservar
+              </button>
+            </div>
           </div>
         </div>
         <p class="action-feedback" data-kit-feedback></p>

@@ -13,6 +13,7 @@ import { getSubscriptions } from "../api/api.js";
 import { renderSubscription } from "../components/subscription.js";
 import { renderPage, showError } from "../utils/render.js";
 import { showSkeletonSubscription } from "../components/skeleton.js";
+import { closeModal, showModal } from "../utils/modal.js";
 
 /**
  * Carga y renderiza la página de suscripciones.
@@ -107,7 +108,28 @@ function registerSubEvents() {
       setTimeout(() => {
         btn.innerHTML = original;
         btn.disabled  = false;
-        alert(`[Mock] Checkout para plan ${planId}.\nConectar con POST /api/store/subscriptions/checkout`);
+        const footer = document.createElement("div");
+        footer.className = "modal-footer-actions";
+        const closeBtn = document.createElement("button");
+        closeBtn.type = "button";
+        closeBtn.className = "btn btn-primary";
+        closeBtn.textContent = "Entendido";
+        closeBtn.addEventListener("click", () => closeModal());
+        footer.appendChild(closeBtn);
+
+        showModal({
+          title: "Checkout (vista previa)",
+          size: "sm",
+          body: `
+            <p class="modal-text">
+              Plan seleccionado: <strong>${planId}</strong>.
+            </p>
+            <p class="modal-hint">
+              Conectar con <code>POST /api/store/subscriptions/checkout</code> cuando la pasarela esté lista.
+            </p>
+          `,
+          footer,
+        });
       }, 1200);
     });
   });

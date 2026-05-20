@@ -3,7 +3,9 @@
 // Entregable 2: Agrega ruta "integration" para el panel de integraciones.
 // ============================================================
 
+import { initCart } from "./components/cart.js";
 import { initNavbar } from "./components/navbar.js";
+import { initModalRoot } from "./utils/modal.js";
 import { forumPage } from "./pages/forumPage.js";
 import { storePage } from "./pages/storePage.js";
 import { coursesPage } from "./pages/coursesPage.js";
@@ -33,6 +35,8 @@ async function navigate(pageId) {
 }
 
 async function init() {
+  initModalRoot();
+  initCart();
   await initNavbar(navigate);
   navigate(DEFAULT_PAGE);
 }

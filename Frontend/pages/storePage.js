@@ -10,9 +10,11 @@
 // ============================================================
 
 import { getKits, reserveKit } from "../api/api.js";
+import { addToCart } from "../components/cart.js";
 import { renderStore } from "../components/store.js";
 import { renderPage, showError } from "../utils/render.js";
 import { showSkeletonStore } from "../components/skeleton.js";
+import { showToast } from "../utils/modal.js";
 
 /**
  * Carga y renderiza la página de la tienda con reserva real.
@@ -73,11 +75,43 @@ export async function storePage() {
     `;
 
     renderPage(html);
-    setTimeout(() => registerReservationEvents(), 200);
+    setTimeout(() => {
+      registerReservationEvents();
+      registerCartEvents();
+    }, 200);
   } catch (err) {
     console.error("[storePage]", err);
     showError("Error de conexión al cargar la tienda.");
   }
+}
+
+function registerCartEvents() {
+  document.querySelectorAll("[data-add-kit]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const card = btn.closest(".kit-card");
+      if (!card) return;
+
+      const startInput = card.querySelector("[data-kit-start]");
+      const endInput = card.querySelector("[data-kit-end]");
+      const inicio = startInput?.value;
+      const fin = endInput?.value;
+
+      if (!inicio || !fin || inicio >= fin) {
+        showToast("Selecciona un rango de fechas válido antes de añadir al carrito.", "error");
+        return;
+      }
+
+      addToCart({
+        type: "kit",
+        id: Number(card.dataset.kitId),
+        name: card.dataset.kitName,
+        price: Number(card.dataset.kitPrice),
+        image: card.dataset.kitImage,
+        inicio,
+        fin,
+      });
+    });
+  });
 }
 
 function registerReservationEvents() {

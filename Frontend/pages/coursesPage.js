@@ -10,6 +10,7 @@
 // ============================================================
 
 import { buyCourse, getCourses } from "../api/api.js";
+import { addToCart } from "../components/cart.js";
 import { renderCourses } from "../components/courses.js";
 import { renderPage, showError } from "../utils/render.js";
 import { showSkeletonCourses } from "../components/skeleton.js";
@@ -74,11 +75,31 @@ export async function coursesPage() {
     `;
 
     renderPage(html);
-    setTimeout(() => registerCourseEvents(), 200);
+    setTimeout(() => {
+      registerCourseEvents();
+      registerCartEvents();
+    }, 200);
   } catch (err) {
     console.error("[coursesPage]", err);
     showError("Error de conexión al cargar los cursos.");
   }
+}
+
+function registerCartEvents() {
+  document.querySelectorAll("[data-add-course]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const card = btn.closest(".course-card");
+      if (!card) return;
+
+      addToCart({
+        type: "course",
+        id: Number(card.dataset.courseId),
+        title: card.dataset.courseTitle,
+        price: Number(card.dataset.coursePrice),
+        image: card.dataset.courseImage,
+      });
+    });
+  });
 }
 
 function registerCourseEvents() {

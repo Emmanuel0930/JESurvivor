@@ -4,6 +4,7 @@
 // ============================================================
 
 import { getCurrentUser } from "../api/api.js";
+import { openCart } from "./cart.js";
 
 export async function initNavbar(navigate) {
   const navbar = document.getElementById("navbar");
@@ -23,6 +24,11 @@ export async function initNavbar(navigate) {
       const page = el.dataset.page;
       if (page) navigate(page);
     });
+  });
+
+  document.getElementById("nav-cart-btn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    openCart();
   });
 }
 
@@ -60,6 +66,13 @@ function buildNavbar(user) {
           <span class="nb-label">Integraciones</span>
         </button>
       </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="nav-cart-btn" id="nav-cart-btn" aria-label="Abrir carrito">
+          <span class="nav-cart-icon" aria-hidden="true">🛒</span>
+          <span class="nav-cart-badge is-hidden" id="cart-badge">0</span>
+        </button>
+      </div>
 
       <div class="nav-user">
         ${user ? buildUserChip(user) : buildGuestCTA()}

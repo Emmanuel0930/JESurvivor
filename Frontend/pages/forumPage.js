@@ -13,6 +13,7 @@ import { getPosts } from "../api/api.js";
 import { renderPostList } from "../components/postList.js";
 import { renderPage, showError } from "../utils/render.js";
 import { showSkeletonForum } from "../components/skeleton.js";
+import { closeModal, showModal, showToast } from "../utils/modal.js";
 
 /**
  * Carga y renderiza la página del foro.
@@ -139,8 +140,36 @@ function registerNewPostButton() {
   if (!btn) return;
 
   btn.addEventListener("click", () => {
-    // TODO: Abrir modal/formulario de nuevo post
-    // Se conectará con POST /api/posts (requiere token JWT)
-    alert("[Mock] Formulario de nuevo post.\nConectar con POST /api/posts cuando el backend esté listo.");
+    const form = document.createElement("form");
+    form.className = "modal-form";
+    form.innerHTML = `
+      <label class="modal-label" for="post-title">Título</label>
+      <input id="post-title" class="modal-input" type="text" placeholder="Ej. Kit esencial para 72h" required />
+      <label class="modal-label" for="post-body">Contenido</label>
+      <textarea id="post-body" class="modal-textarea" rows="5" placeholder="Comparte tu experiencia o pregunta..." required></textarea>
+      <p class="modal-hint">Vista previa — conectar con POST /api/posts cuando el backend esté listo.</p>
+    `;
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      closeModal();
+      showToast("Publicación guardada en borrador (mock).", "success");
+    });
+
+    const footer = document.createElement("div");
+    footer.className = "modal-footer-actions";
+    footer.innerHTML = `
+      <button type="button" class="btn btn-ghost" data-modal-cancel>Cancelar</button>
+      <button type="submit" class="btn btn-primary" form="post-form">Publicar</button>
+    `;
+    form.id = "post-form";
+    footer.querySelector("[data-modal-cancel]").addEventListener("click", () => closeModal());
+
+    showModal({
+      title: "Nuevo post",
+      size: "md",
+      body: form,
+      footer,
+    });
   });
 }
